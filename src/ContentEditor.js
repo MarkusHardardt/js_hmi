@@ -1315,18 +1315,19 @@
     // JSONFX - PREVIEW & EDITOR
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_jso_preview = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, scrolls_raw = {}, scrolls_build = {}, mode = ContentManager.RAW, update_mode = function (i_mode) {
-            mode = i_mode;
-            button_hmi.selected = i_mode === ContentManager.PARSE;
+    function getJsoPreview(hmi, adapter) {
+        let cms = hmi.cms, scrolls_raw = {}, scrolls_build = {}, mode = ContentManager.RAW;
+        function update_mode(md) {
+            mode = md;
+            button_hmi.selected = md === ContentManager.PARSE;
             button_hmi.hmi_setSelected(button_hmi.selected);
-            button_include.selected = i_mode === ContentManager.INCLUDE;
+            button_include.selected = md === ContentManager.INCLUDE;
             button_include.hmi_setSelected(button_include.selected);
-            button_raw.selected = i_mode === ContentManager.RAW;
+            button_raw.selected = md === ContentManager.RAW;
             button_raw.hmi_setSelected(button_raw.selected);
-            i_adapter.triggerReload();
+            adapter.triggerReload();
         };
-        var reload = function (i_data, i_language, i_success, i_error) {
+        function reload(data, language, onSuccess, onError) {
             if (textarea.file_raw) {
                 handleScrolls(scrolls_raw, textarea.file_raw, textarea, false);
                 delete textarea.file_raw;
@@ -1335,64 +1336,61 @@
                 handleScrolls(scrolls_build, textarea.file_build, textarea, false);
                 delete textarea.file_build;
             }
-            if (i_data && i_data.file) {
+            if (data && data.file) {
                 switch (mode) {
                     case ContentManager.RAW:
                         container.hmi_removeContent(function () {
-                            cms.getObject(i_data.file, i_language, ContentManager.RAW, function (i_raw) {
-                                var value = i_raw !== undefined ? jsonfx.stringify(jsonfx.reconstruct(i_raw), true) : '';
+                            cms.getObject(data.file, language, ContentManager.RAW, raw => {
+                                let value = raw !== undefined ? jsonfx.stringify(jsonfx.reconstruct(raw), true) : '';
                                 textarea.value = value;
-                                container.hmi_setContent(textarea, function () {
-                                    if (i_raw !== undefined) {
-                                        textarea.file_raw = i_data.file;
+                                container.hmi_setContent(textarea, () => {
+                                    if (raw !== undefined) {
+                                        textarea.file_raw = data.file;
                                         handleScrolls(scrolls_raw, textarea.file_raw, textarea, true);
                                     }
-                                    i_success();
-                                }, i_error);
-                            }, i_error);
-                        }, i_error);
+                                    onSuccess();
+                                }, onError);
+                            }, onError);
+                        }, onError);
                         break;
                     case ContentManager.INCLUDE:
-                        container.hmi_removeContent(function () {
-                            cms.getObject(i_data.file, i_language, ContentManager.INCLUDE, function (i_build) {
-                                var value = i_build !== undefined ? jsonfx.stringify(jsonfx.reconstruct(i_build), true) : '';
+                        container.hmi_removeContent(() => {
+                            cms.getObject(data.file, language, ContentManager.INCLUDE, build => {
+                                var value = build !== undefined ? jsonfx.stringify(jsonfx.reconstruct(build), true) : '';
                                 textarea.value = value;
-                                container.hmi_setContent(textarea, function () {
-                                    if (i_build !== undefined) {
-                                        textarea.file_build = i_data.file;
+                                container.hmi_setContent(textarea, () => {
+                                    if (build !== undefined) {
+                                        textarea.file_build = data.file;
                                         handleScrolls(scrolls_build, textarea.file_build, textarea, true);
                                     }
-                                    i_success();
-                                }, i_error);
-                            }, i_error);
-                        }, i_error);
+                                    onSuccess();
+                                }, onError);
+                            }, onError);
+                        }, onError);
                         break;
                     case ContentManager.PARSE:
-                        container.hmi_removeContent(function () {
-                            cms.getObject(i_data.file, i_language, ContentManager.PARSE, function (i_parsed) {
-                                if (i_parsed !== null && typeof i_parsed === 'object' && !Array.isArray(i_parsed)) {
-                                    container.hmi_setContent(i_parsed, i_success, i_error);
-                                }
-                                else if (i_parsed !== undefined) {
+                        container.hmi_removeContent(() => {
+                            cms.getObject(data.file, language, ContentManager.PARSE, parsed => {
+                                if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                                    container.hmi_setContent(parsed, onSuccess, onError);
+                                } else if (parsed !== undefined) {
                                     container.hmi_setContent({
-                                        html: '<b>Invalid hmi-object: "' + i_data.file + '"</b><br>Type is: ' + (Array.isArray(i_parsed) ? 'array' : typeof i_parsed)
-                                    }, i_success, i_error);
-                                }
-                                else {
+                                        html: '<b>Invalid hmi-object: "' + data.file + '"</b><br>Type is: ' + (Array.isArray(parsed) ? 'array' : typeof parsed)
+                                    }, onSuccess, onError);
+                                } else {
                                     container.hmi_setContent({
-                                        html: '<b>No data available: "' + i_data.file + '"</b>'
-                                    }, i_success, i_error);
+                                        html: '<b>No data available: "' + data.file + '"</b>'
+                                    }, onSuccess, onError);
                                 }
-                            }, i_error);
-                        }, i_error);
+                            }, onError);
+                        }, onError);
                         break;
                 }
-            }
-            else {
-                container.hmi_removeContent(i_success, i_error);
+            } else {
+                container.hmi_removeContent(onSuccess, onError);
             }
         };
-        var textarea = {
+        let textarea = {
             x: 0,
             y: 0,
             width: 3,
@@ -1401,84 +1399,79 @@
             code: 'javascript',
             editable: false
         };
-        var container = {
+        let container = {
             x: 0,
             y: 0,
             width: 4,
             height: 1,
             type: 'container'
         };
-        var info_lang = {
+        let info_lang = {
             x: 0,
             y: 1,
             align: 'left'
         };
-        var button_hmi = {
+        let button_hmi = {
             x: 1,
             y: 1,
             text: 'hmi',
             border: true,
-            clicked: function () {
-                update_mode(ContentManager.PARSE);
-            }
+            clicked: () => update_mode(ContentManager.PARSE)
         };
-        var button_include = {
+        let button_include = {
             x: 2,
             y: 1,
             text: 'include',
             border: true,
-            clicked: function () {
-                update_mode(ContentManager.INCLUDE);
-            }
+            clicked: () => update_mode(ContentManager.INCLUDE)
         };
-        var button_raw = {
+        let button_raw = {
             x: 3,
             y: 1,
             text: 'raw',
             border: true,
             selected: true,
-            clicked: function () {
-                update_mode(ContentManager.RAW);
-            }
+            clicked: () => update_mode(ContentManager.RAW)
         };
         return {
             type: 'grid',
             columns: [1, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH],
             rows: [1, DEFAULT_ROW_HEIGHT],
             children: [container, info_lang, button_hmi, button_include, button_raw],
-            keyChanged: function (i_data, i_language, i_success, i_error) {
-                info_lang.hmi_text('language: "' + i_language + '"');
+            keyChanged: (data, language, onSuccess, onError) => {
+                info_lang.hmi_text('language: "' + language + '"');
                 button_hmi.hmi_setEnabled(false);
                 button_include.hmi_setEnabled(false);
                 button_raw.hmi_setEnabled(false);
-                reload(i_data, i_language, function () {
+                reload(data, language, () => {
                     button_hmi.hmi_setEnabled(true);
                     button_include.hmi_setEnabled(true);
                     button_raw.hmi_setEnabled(true);
-                    i_success();
-                }, function (i_exception) {
+                    onSuccess();
+                }, error => {
                     button_hmi.hmi_setEnabled(true);
                     button_include.hmi_setEnabled(true);
                     button_raw.hmi_setEnabled(true);
-                    i_error(i_exception);
+                    onError(error);
                 });
             },
-            scrolls_raw: scrolls_raw,
-            scrolls_build: scrolls_build
+            scrolls_raw,
+            scrolls_build
         };
-    };
+    }
 
-    var get_jso_editor = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, scrolls = {}, mode = ContentManager.RAW, update_mode = function (i_mode) {
-            mode = i_mode;
-            button_hmi.selected = i_mode === ContentManager.PARSE;
+    function getJsoEditor(hmi, adapter) {
+        let cms = hmi.cms, scrolls = {}, mode = ContentManager.RAW;
+        function update_mode(md) {
+            mode = md;
+            button_hmi.selected = md === ContentManager.PARSE;
             button_hmi.hmi_setSelected(button_hmi.selected);
-            button_raw.selected = i_mode === ContentManager.RAW;
+            button_raw.selected = md === ContentManager.RAW;
             button_raw.hmi_setSelected(button_raw.selected);
-            i_adapter.triggerReload();
+            adapter.triggerReload();
         };
-        var edited = false, object, raw, sel_data;
-        var reload = function (i_data, i_language, i_success, i_error) {
+        let edited = false, object, raw;
+        function reload(data, language, onSuccess, onError) {
             if (textarea.file) {
                 handleScrolls(scrolls, textarea.file, textarea, false);
                 delete textarea.file;
@@ -1490,112 +1483,108 @@
                 }
                 object = undefined;
             }
-            if (i_data && i_data.file) {
+            if (data && data.file) {
                 switch (mode) {
                     case ContentManager.RAW:
-                        container.hmi_removeContent(function () {
-                            cms.getObject(i_data.file, i_language, ContentManager.RAW, function (i_raw) {
-                                raw = i_raw !== undefined ? jsonfx.reconstruct(i_raw) : undefined;
+                        container.hmi_removeContent(() => {
+                            cms.getObject(data.file, language, ContentManager.RAW, raw => {
+                                raw = raw !== undefined ? jsonfx.reconstruct(raw) : undefined;
                                 textarea.value = raw !== undefined ? jsonfx.stringify(raw, true) : '';
-                                container.hmi_setContent(textarea, function () {
-                                    if (i_raw !== undefined) {
-                                        textarea.file = i_data.file;
+                                container.hmi_setContent(textarea, () => {
+                                    if (raw !== undefined) {
+                                        textarea.file = data.file;
                                         handleScrolls(scrolls, textarea.file, textarea, true);
                                     }
-                                    i_success();
-                                }, i_error);
-                            }, i_error);
-                        }, i_error);
+                                    onSuccess();
+                                }, onError);
+                            }, onError);
+                        }, onError);
                         break;
                     case ContentManager.PARSE:
-                        container.hmi_removeContent(function () {
-                            cms.getObject(i_data.file, i_language, ContentManager.RAW, function (i_raw) {
-                                if (i_raw !== undefined) {
-                                    raw = jsonfx.reconstruct(i_raw);
-                                    cms.getObject(i_data.file, i_language, ContentManager.PARSE, function (i_parsed) {
-                                        if (i_parsed !== null && typeof i_parsed === 'object' && !Array.isArray(i_parsed)) {
-                                            object = i_parsed;
-                                            container.hmi_setContent(object, function () {
+                        container.hmi_removeContent(() => {
+                            cms.getObject(data.file, language, ContentManager.RAW, raw => {
+                                if (raw !== undefined) {
+                                    raw = jsonfx.reconstruct(raw);
+                                    cms.getObject(data.file, language, ContentManager.PARSE, parsed => {
+                                        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                                            object = parsed;
+                                            container.hmi_setContent(object, () => {
                                                 if (typeof object._hmi_addEditListener === 'function') {
                                                     object._hmi_addEditListener(edit_listener);
                                                 }
-                                                i_success();
-                                            }, i_error, undefined, true, true);
-                                        }
-                                        else if (i_parsed !== undefined) {
+                                                onSuccess();
+                                            }, onError, undefined, true, true);
+                                        } else if (parsed !== undefined) {
                                             container.hmi_setContent({
-                                                html: '<b>Invalid hmi-object: "' + i_data.file + '"</b><br>Type is: ' + (Array.isArray(i_parsed) ? 'array' : typeof i_parsed)
-                                            }, i_success, i_error);
-                                        }
-                                        else {
+                                                html: '<b>Invalid hmi-object: "' + data.file + '"</b><br>Type is: ' + (Array.isArray(parsed) ? 'array' : typeof parsed)
+                                            }, onSuccess, onError);
+                                        } else {
                                             container.hmi_setContent({
-                                                html: '<b>No data available: "' + i_data.file + '"</b>'
-                                            }, i_success, i_error);
+                                                html: '<b>No data available: "' + data.file + '"</b>'
+                                            }, onSuccess, onError);
                                         }
-                                    }, i_error);
-                                }
-                                else {
+                                    }, onError);
+                                } else {
                                     container.hmi_setContent({
-                                        html: '<b>No data available: "' + i_data.file + '"</b>'
-                                    }, i_success, i_error);
+                                        html: '<b>No data available: "' + data.file + '"</b>'
+                                    }, onSuccess, onError);
                                 }
-                            }, i_error);
-                        }, i_error);
+                            }, onError);
+                        }, onError);
                         break;
                 }
-            }
-            else {
-                container.hmi_removeContent(i_success, i_error);
+            } else {
+                container.hmi_removeContent(onSuccess, onError);
             }
         };
-        var textarea = {
+        let textarea = {
             type: 'textarea',
             code: 'javascript',
             beautify: true,
             editable: true,
             value: raw !== undefined ? jsonfx.stringify(raw, true) : '',
-            prepare: function (that, i_success, i_error) {
-                this._on_change = function () {
+            prepare: (that, onSuccess, onError) => {
+                that._on_change = () => {
                     if (!edited) {
                         edited = true;
-                        i_adapter.edited();
+                        adapter.edited();
                         button_hmi.hmi_setEnabled(false);
                         button_raw.hmi_setEnabled(false);
                     }
                 };
-                this.hmi_addChangeListener(this._on_change);
-                i_success();
+                that.hmi_addChangeListener(that._on_change);
+                onSuccess();
             },
-            destroy: function (that, i_success, i_error) {
-                this.hmi_removeChangeListener(this._on_change);
-                delete this._on_change;
-                i_success();
+            destroy: (that, onSuccess, onError) => {
+                that.hmi_removeChangeListener(that._on_change);
+                delete that._on_change;
+                onSuccess();
             }
         };
-        var edit_listener = {
-            notifyEdited: function () {
+        let edit_listener = {
+            notifyEdited: () => {
                 if (!edited) {
                     edited = true;
-                    i_adapter.edited();
+                    adapter.edited();
                     button_hmi.hmi_setEnabled(false);
                     button_raw.hmi_setEnabled(false);
                 }
             },
-            showChildObjectEditor: function (i_index, i_child) {
+            showChildObjectEditor: (index, child) => {
                 if (!edited) {
                     if (Array.isArray(raw.children)) {
-                        var obj = raw.children[i_index] || {
-                            x: i_child && typeof i_child.x === 'number' ? i_child.x : 0,
-                            y: i_child && typeof i_child.y === 'number' ? i_child.y : 0,
-                            width: i_child && typeof i_child.width === 'number' ? i_child.width : 1,
-                            height: i_child && typeof i_child.height === 'number' ? i_child.height : 1,
+                        let obj = raw.children[index] || {
+                            x: child && typeof child.x === 'number' ? child.x : 0,
+                            y: child && typeof child.y === 'number' ? child.y : 0,
+                            width: child && typeof child.width === 'number' ? child.width : 1,
+                            height: child && typeof child.height === 'number' ? child.height : 1,
                             id: 'enter object node id here',
                             type: 'enter type here',
                             classes: 'highlighted-yellow',
                             text: 'enter text here',
                         };
-                        var value = jsonfx.stringify(jsonfx.reconstruct(obj), true);
-                        var src_obj = {
+                        let value = jsonfx.stringify(jsonfx.reconstruct(obj), true);
+                        let src_obj = {
                             x: 0,
                             y: 0,
                             type: 'textarea',
@@ -1603,86 +1592,78 @@
                             beautify: true,
                             value: value
                         };
-                        var info_obj = {
+                        let info_obj = {
                             x: 0,
                             y: 1,
                             align: 'left'
                         };
-                        var popup_obj = {
+                        let popup_obj = {
                             type: 'grid',
                             columns: 1,
                             rows: [1, '30px'],
                             children: [src_obj, info_obj]
                         };
-                        i_hmi.showPopup({
+                        hmi.showPopup({
                             title: 'Edit',
                             width: Math.floor($(window).width() * 0.9),
                             height: Math.floor($(window).height() * 0.95),
                             object: popup_obj,
                             buttons: [{
                                 text: 'commit',
-                                click: function (i_close) {
+                                click: onClose => {
                                     try {
-                                        var value = src_obj.hmi_value().trim();
-                                        var object = value.length > 0 ? jsonfx.parse(value, true, true) : undefined;
+                                        let value = src_obj.hmi_value().trim();
+                                        let object = value.length > 0 ? jsonfx.parse(value, true, true) : undefined;
                                         if (object !== undefined) {
-                                            raw.children[typeof i_index === 'number' && i_index >= 0 ? i_index : raw.children.length] = object;
+                                            raw.children[typeof index === 'number' && index >= 0 ? index : raw.children.length] = object;
+                                        } else if (typeof index === 'number' && index >= 0) {
+                                            raw.children.splice(index, 1);
                                         }
-                                        else if (typeof i_index === 'number' && i_index >= 0) {
-                                            raw.children.splice(i_index, 1);
-                                        }
-                                        i_adapter.performCommit(jsonfx.stringify(raw, false));
-                                        i_close();
-                                    }
-                                    catch (exc) {
+                                        adapter.performCommit(jsonfx.stringify(raw, false));
+                                        onClose();
+                                    } catch (exc) {
                                         info_obj.hmi_addClass('highlighted-red');
                                         info_obj.hmi_text(exc);
                                     }
                                 }
                             }, {
                                 text: 'cancel',
-                                click: function (i_close) {
-                                    i_close();
-                                }
+                                click: onClose
                             }]
                         });
                     }
                 }
             }
         };
-        var container = {
+        let container = {
             x: 0,
             y: 0,
             type: 'container'
         };
-        var info_lang = {
+        let info_lang = {
             x: 0,
             y: 0,
             align: 'left'
         };
-        var button_hmi = {
+        let button_hmi = {
             x: 1,
             y: 0,
             text: 'hmi',
             border: true,
-            clicked: function () {
-                update_mode(ContentManager.PARSE);
-            }
+            clicked: () => update_mode(ContentManager.PARSE)
         };
-        var button_raw = {
+        let button_raw = {
             x: 2,
             y: 0,
             text: 'raw',
             border: true,
             selected: true,
-            clicked: function () {
-                update_mode(ContentManager.RAW);
-            }
+            clicked: () => update_mode(ContentManager.RAW)
         };
-        var get_value = function () {
+        function get_value() {
             switch (mode) {
                 case ContentManager.RAW:
-                    var value = textarea.hmi_value().trim();
+                    let value = textarea.hmi_value().trim();
                     return value.length > 0 ? jsonfx.stringify(jsonfx.parse(value, true, true), false) : '';
                 case ContentManager.PARSE:
                     if ((object.type === 'grid' || object.type === 'float') && Array.isArray(raw.children) && Array.isArray(object.children)) {
@@ -1698,8 +1679,7 @@
                             }
                         }
                         return jsonfx.stringify(raw, false);
-                    }
-                    else {
+                    } else {
                         throw new Error('Invalid hmi-edit-content');
                     }
                     break;
@@ -1720,33 +1700,33 @@
                 rows: 1,
                 children: [info_lang, button_hmi, button_raw]
             }],
-            keyChanged: function (i_data, i_language, i_success, i_error) {
+            keyChanged: (data, language, onSuccess, onError) => {
                 edited = false;
-                sel_data = i_data;
-                info_lang.hmi_text('language: "' + i_language + '"');
+                sel_data = data;
+                info_lang.hmi_text('language: "' + language + '"');
                 button_hmi.hmi_setEnabled(false);
                 button_raw.hmi_setEnabled(false);
-                reload(i_data, i_language, function () {
+                reload(data, language, () => {
                     button_hmi.hmi_setEnabled(true);
                     button_raw.hmi_setEnabled(true);
-                    i_success();
-                }, function (i_exception) {
+                    onSuccess();
+                }, error => {
                     button_hmi.hmi_setEnabled(true);
                     button_raw.hmi_setEnabled(true);
-                    i_error(i_exception);
+                    onError(error);
                 });
             },
             getValue: get_value,
-            destroy: function (that, i_success, i_error) {
+            destroy: (that, onSuccess, onError) => {
                 if (object && typeof object._hmi_removeEditListener === 'function') {
                     console.log('object._hmi_removeEditListener(edit_listener);');
                     object._hmi_removeEditListener(edit_listener);
                 }
-                i_success();
+                onSuccess();
             },
-            scrolls: scrolls
+            scrolls
         };
-    };
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // MAIN - PREVIEW & EDITOR & CONTENT EDITOR
@@ -1770,7 +1750,7 @@
         var lab = getLabPreview(i_hmi, i_adapter);
         var htm = getHtmPreview(i_hmi, i_adapter);
         var txt = getTxtPreview(i_hmi, i_adapter);
-        var jso = get_jso_preview(i_hmi, i_adapter);
+        var jso = getJsoPreview(i_hmi, i_adapter);
         var handlers = {};
         cms.getDescriptors(function (i_ext, i_desc) {
             handlers[i_ext] = getHandler(i_desc, lab, htm, txt, jso);
@@ -2055,7 +2035,7 @@
         var lab = getLabEditor(i_hmi, i_adapter);
         var htm = getHtmEditor(i_hmi, i_adapter);
         var txt = getTxtEditor(i_hmi, i_adapter);
-        var jso = get_jso_editor(i_hmi, i_adapter);
+        var jso = getJsoEditor(i_hmi, i_adapter);
         var handlers = {};
         cms.getDescriptors(function (i_ext, i_desc) {
             handlers[i_ext] = getHandler(i_desc, lab, htm, txt, jso);
