@@ -39,8 +39,8 @@
                 contentType: 'application/json;charset=utf-8',
                 data: '',
                 dataType: 'text',
-                success: function (config) {
-                    config = jsonfx.parse(config, false, true);
+                success: function (cfg) {
+                    config = jsonfx.parse(cfg, false, true);
                     onSuccess();
                 },
                 error: onError,
