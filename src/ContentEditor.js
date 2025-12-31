@@ -16,7 +16,7 @@
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
     function handleScrolls(scrolls, id, textarea, restore) {
-        const scrolls = textarea.hmi_handleScrollParams(scrolls[id], restore);
+        scrolls = textarea.hmi_handleScrollParams(scrolls[id], restore);
         if (scrolls.viewport_left > 0 || scrolls.viewport_top) {
             scrolls[id] = scrolls;
         }

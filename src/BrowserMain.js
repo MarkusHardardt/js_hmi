@@ -82,6 +82,6 @@
                 }
                 hmi.destroy(object, () => console.log('js hmi stopped'), error => console.error(error));
             });
-        }, error = <console.error(error));
+        }, error => console.error(error));
     });
 }());

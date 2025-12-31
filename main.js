@@ -76,6 +76,13 @@
     // Note: The next css file references png files by relative paths. Because 'dist' is the common root, we must not scramble deeper folders.
     webServer.AddStaticFile('./node_modules/jquery.fancytree/dist', minimized ? 'skin-lion/ui.fancytree.min.css' : 'skin-lion/ui.fancytree.css');
     webServer.AddStaticFile('./node_modules/jquery.fancytree/dist/' + (minimized ? 'jquery.fancytree-all.min.js' : 'jquery.fancytree-all.js'));
+    webServer.AddStaticFile('./ext/jquery/jquery.ui.touch-punch.js');
+    webServer.AddStaticFile('./ext/jquery/jquery.transform2d.js');
+    webServer.AddStaticFile('./ext/jquery/ajaxblob.js');
+    webServer.AddStaticFile('./ext/jquery/layout-default-latest.css');
+    webServer.AddStaticFile('./ext/jquery/jquery.layout-latest.js');
+    webServer.AddStaticFile('./ext/jquery/dataTables.pageResize.min.js');
+    webServer.AddStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
     /*
     webServer.AddStaticFile('./ext/jquery/jquery.transform2d.js');
     webServer.AddStaticFile('./ext/jquery/ajaxblob.js');
@@ -84,26 +91,25 @@
     webServer.AddStaticFile('./ext/jquery/dataTables.pageResize.min.js');
     webServer.AddStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
     */
-   /*
-    webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.css');
-    webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.js');
-    webServer.AddStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
-    webServer.AddStaticFile('./node_modules/codemirror/mode/xml/xml.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/edit/matchbrackets.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/edit/closebrackets.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/search.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.css');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/searchcursor.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/match-highlighter.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.css');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/javascript-hint.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
-    */
-    webServer.AddStaticFile('./node_modules/codemirror/dist/index.js');
+    /* // TODO: https://codemirror.net/docs/migration/
+     webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.css');
+     webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.js');
+     webServer.AddStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
+     webServer.AddStaticFile('./node_modules/codemirror/mode/xml/xml.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/edit/matchbrackets.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/edit/closebrackets.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/search/search.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.css');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/search/searchcursor.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/search/match-highlighter.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.css');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/hint/javascript-hint.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
+     webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
+     */
 
     webServer.AddStaticFile('./node_modules/file-saver/dist/' + (minimized ? 'FileSaver.min.js' : 'FileSaver.js'));
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify.js');
