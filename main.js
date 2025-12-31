@@ -50,17 +50,11 @@
     hmi.lib.regex = Regex;
     hmi.lib.sql = SqlHelper;
     // add hmi-object-framweork
-    hmi.create = function (object, element, onSuccess, onError, initData) {
-        ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
-    };
+    hmi.create = (object, element, onSuccess, onError, initData) => ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
     hmi.destroy = ObjectLifecycleManager.destroy;
     hmi.env = {
-        isInstance: function (instance) {
-            return false;
-        }, // TODO: Implement isInstance(instance)
-        isSimulationEnabled: function () {
-            return false;
-        } // TODO: Implement isSimulationEnabled()
+        isInstance: instance => false, // TODO: Implement isInstance(instance)
+        isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
     };
 
     // Prepare web server
@@ -137,9 +131,7 @@
     body += '</script>\n';
     webServer.SetBody(body); */
     // deliver main config to client
-    webServer.Post('/get_client_config', function (request, response) {
-        response.send(jsonfx.stringify(main_config.client, false));
-    });
+    webServer.Post('/get_client_config', (request, response) => response.send(jsonfx.stringify(main_config.client, false)));
 
     // prepare content management system
     // we need the handler for database access
@@ -150,26 +142,18 @@
     db_config.jsonfx_pretty = main_config.jsonfx_pretty === true;
     hmi.cms = new ContentManager(sqlHelper.createAdapter, db_config);
     // we need access via ajax from clients
-    webServer.Post(ContentManager.GET_CONTENT_DATA_URL, function (request, response) {
+    webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
         hmi.cms.handleRequest(request.body,
-            function (result) {
-                response.send(jsonfx.stringify(result, false));
-            },
-            function (error) {
-                response.send(jsonfx.stringify(error.toString(), false));
-            }
+            result => response.send(jsonfx.stringify(result, false)),
+            error => response.send(jsonfx.stringify(error.toString(), false))
         );
     });
     // the tree control requests da via 'GET' so we handle those request
     // separately
-    webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, function (request, response) {
+    webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, (request, response) => {
         hmi.cms.handleFancyTreeRequest(request.query.request, request.query.path,
-            function (result) {
-                response.send(jsonfx.stringify(result, false));
-            },
-            function (error) {
-                response.send(jsonfx.stringify(error.toString(), false));
-            }
+            result => response.send(jsonfx.stringify(result, false)),
+            error => response.send(jsonfx.stringify(error.toString(), false))
         );
     });
     function addStaticFiles(file) {
@@ -186,26 +170,20 @@
 
     const tasks = [];
 
-    tasks.push(function (onSuccess, onError) {
+    tasks.push((onSuccess, onError) => {
         if (typeof main_config.server.cycle_millis === 'number' && main_config.server.cycle_millis > 0) {
-            setInterval(function () {
-                ObjectLifecycleManager.refresh(new Date());
-            }, main_config.server.cycle_millis);
+            setInterval(() => ObjectLifecycleManager.refresh(new Date()), main_config.server.cycle_millis);
             onSuccess();
         } else {
             onError('Invalid cycle millis');
         }
     });
     // finally ...
-    Executor.run(tasks, function () {
+    Executor.run(tasks, () => {
         Object.seal(hmi);
         // start server if required
         if (typeof main_config.server.web_server_port === 'number') {
-            webServer.Listen(main_config.server.web_server_port, function () {
-                console.log('js hmi web server listening on port: ' + main_config.server.web_server_port);
-            });
+            webServer.Listen(main_config.server.web_server_port, () => console.log('js hmi web server listening on port: ' + main_config.server.web_server_port));
         }
-    }, function (error) {
-        console.error(error);
-    });
+    }, error => console.error(error));
 }());

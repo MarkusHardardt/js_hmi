@@ -16,30 +16,24 @@
     hmi.droppables = {};
 
     // add hmi-object-framweork
-    hmi.create = function (object, element, onSuccess, onError, initData) {
-        ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
-    };
+    hmi.create = (object, element, onSuccess, onError, initData) => ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
     hmi.destroy = ObjectLifecycleManager.destroy;
-    hmi.showPopup = function (config, onSuccess, onError) {
-        ObjectLifecycleManager.showPopup(hmi, config, onSuccess, onError);
-    };
-    hmi.showDefaultConfirmationPopup = function (config, onSuccess, onError) {
-        ObjectLifecycleManager.showDefaultConfirmationPopup(hmi, config, onSuccess, onError);
-    };
+    hmi.showPopup = (config, onSuccess, onError) => ObjectLifecycleManager.showPopup(hmi, config, onSuccess, onError);
+    hmi.showDefaultConfirmationPopup = (config, onSuccess, onError) => ObjectLifecycleManager.showDefaultConfirmationPopup(hmi, config, onSuccess, onError);
     // all static files have been loaded and now we create the hmi.
-    $(function () {
+    $(() => {
         const main = [];
         main.parallel = false;
         // load client config
         let config = false;
-        main.push(function (onSuccess, onError) {
+        main.push((onSuccess, onError) => {
             $.ajax({ // TODO: Replace
                 type: 'POST',
                 url: '/get_client_config',
                 contentType: 'application/json;charset=utf-8',
                 data: '',
                 dataType: 'text',
-                success: function (cfg) {
+                success: cfg => {
                     config = jsonfx.parse(cfg, false, true);
                     onSuccess();
                 },
@@ -48,10 +42,8 @@
             });
         });
         // prepare content management system
-        main.push(function (onSuccess, onError) {
-            hmi.cms = new ContentManager.Proxy(onSuccess, onError);
-        });
-        main.push(function (onSuccess, onError) {
+        main.push((onSuccess, onError) => hmi.cms = new ContentManager.Proxy(onSuccess, onError));
+        main.push((onSuccess, onError) => {
             const languages = hmi.cms.getLanguages();
             if (Array.isArray(languages) && languages.length > 0) {
                 hmi.languages = languages;
@@ -61,10 +53,10 @@
                 onError('no languages available');
             }
         });
-        main.push(function (onSuccess, onError) {
+        main.push((onSuccess, onError) => {
             let raf_cycle = typeof config.raf_cycle === 'number' && config.raf_cycle > 0 ? config.raf_cycle : 60;
             let raf_idx = 0;
-            let loop = function () {
+            let loop = () => {
                 raf_idx++;
                 if (raf_idx >= raf_cycle) {
                     raf_idx = 0;
@@ -77,29 +69,19 @@
             onSuccess();
         });
         // load hmi
-        Executor.run(main, function () {
+        Executor.run(main, () => {
             Object.seal(hmi);
             var body = $(document.body);
             body.empty();
             body.addClass('hmi-body');
             var object = getContentEditor(hmi);
-            hmi.create(object, body, function () {
-                console.log('js hmi started');
-            }, function (error) {
-                console.error(error);
-            });
-            body.on('unload', function () {
+            hmi.create(object, body, () => console.log('js hmi started'), error => console.error(error));
+            body.on('unload', () => {
                 if (clientHandler) {
                     clientHandler.shutdown();
                 }
-                hmi.destroy(object, function () {
-                    console.log('js hmi stopped');
-                }, function (error) {
-                    console.error(error);
-                });
+                hmi.destroy(object, () => console.log('js hmi stopped'), error => console.error(error));
             });
-        }, function (error) {
-            console.error(error);
-        });
+        }, error => console.error(error));
     });
 }());
