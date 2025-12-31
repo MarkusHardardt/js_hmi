@@ -497,9 +497,9 @@
                 info.hmi_value('');
                 update();
             },
-            updateInfo: info => {
+            updateInfo: inf => {
                 if (last_read_offset === 0) {
-                    info.hmi_value(info);
+                    info.hmi_value(inf);
                 }
             }
         };
@@ -861,39 +861,37 @@
     // LABELS - PREVIEW & EDITOR
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_lab_preview = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, langs = i_hmi.cms.getLanguages(), children = [], rows = [], values = {};
-        var reload = function (i_data, i_language, i_success, i_error) {
-            if (i_data && i_data.file) {
-                cms.getObject(i_data.file, undefined, ContentManager.INCLUDE, function (i_build) {
-                    if (i_build !== undefined) {
-                        for (var i = 0, l = langs.length; i < l; i++) {
-                            var lang = langs[i], lab = i_build[lang];
+    function getLabPreview(hmi, adapter) {
+        let cms = hmi.cms, langs = hmi.cms.getLanguages(), children = [], rows = [], values = {};
+        function reload(data, language, onSuccess, onError) {
+            if (data && data.file) {
+                cms.getObject(data.file, undefined, ContentManager.INCLUDE, build => {
+                    if (build !== undefined) {
+                        for (let i = 0, l = langs.length; i < l; i++) {
+                            let lang = langs[i], lab = build[lang];
                             values[lang].hmi_html(lab || '');
                         }
-                    }
-                    else {
-                        for (var i = 0, l = langs.length; i < l; i++) {
+                    } else {
+                        for (let i = 0, l = langs.length; i < l; i++) {
                             values[langs[i]].hmi_html('');
                         }
                     }
-                    i_success();
-                }, function (i_exception) {
-                    for (var i = 0, l = langs.length; i < l; i++) {
+                    onSuccess();
+                }, error => {
+                    for (let i = 0, l = langs.length; i < l; i++) {
                         values[langs[i]].hmi_html('');
                     }
-                    i_error(i_exception);
+                    onError(error);
                 });
-            }
-            else {
-                for (var i = 0, l = langs.length; i < l; i++) {
+            } else {
+                for (let i = 0, l = langs.length; i < l; i++) {
                     values[langs[i]].hmi_html('');
                 }
-                i_success();
+                onSuccess();
             }
         };
-        for (var i = 0, l = langs.length; i < l; i++) {
-            var lang = langs[i];
+        for (let i = 0, l = langs.length; i < l; i++) {
+            let lang = langs[i];
             children.push({
                 x: 0,
                 y: i,
@@ -901,7 +899,7 @@
                 border: false,
                 classes: 'hmi-dark'
             });
-            var obj = {
+            let obj = {
                 x: 1,
                 y: i,
                 align: 'left',
@@ -918,45 +916,41 @@
             columns: [DEFAULT_COLUMN_WIDTH, 1],
             rows: rows,
             children: children,
-            keyChanged: function (i_data, i_language, i_success, i_error) {
-                reload(i_data, i_language, i_success, i_error);
-            }
+            keyChanged: (data, language, onSuccess, onError) => reload(data, language, onSuccess, onError)
         };
-    };
+    }
 
-    var get_lab_editor = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, langs = cms.getLanguages(), children = [], rows = [], values = {};
-        var reload = function (i_data, i_language, i_success, i_error) {
-            if (i_data && i_data.file) {
-                cms.getObject(i_data.file, undefined, ContentManager.RAW, function (i_raw) {
-                    if (i_raw !== undefined) {
-                        for (var i = 0, l = langs.length; i < l; i++) {
-                            var lang = langs[i], lab = i_raw[lang];
+    function getLabEditor(hmi, adapter) {
+        let cms = hmi.cms, langs = cms.getLanguages(), children = [], rows = [], values = {};
+        function reload(data, language, onSuccess, onError) {
+            if (data && data.file) {
+                cms.getObject(data.file, undefined, ContentManager.RAW, raw => {
+                    if (raw !== undefined) {
+                        for (let i = 0, l = langs.length; i < l; i++) {
+                            let lang = langs[i], lab = raw[lang];
                             values[lang].hmi_value(lab || '');
                         }
-                    }
-                    else {
-                        for (var i = 0, l = langs.length; i < l; i++) {
+                    } else {
+                        for (let i = 0, l = langs.length; i < l; i++) {
                             values[langs[i]].hmi_value('');
                         }
                     }
-                    i_success();
-                }, function (i_exception) {
-                    for (var i = 0, l = langs.length; i < l; i++) {
+                    onSuccess();
+                }, error => {
+                    for (let i = 0, l = langs.length; i < l; i++) {
                         values[langs[i]].hmi_value('');
                     }
-                    i_error(i_exception);
+                    onError(error);
                 });
-            }
-            else {
-                for (var i = 0, l = langs.length; i < l; i++) {
+            } else {
+                for (let i = 0, l = langs.length; i < l; i++) {
                     values[langs[i]].hmi_value('');
                 }
-                i_success();
+                onSuccess();
             }
         };
-        for (var i = 0, l = langs.length; i < l; i++) {
-            var lang = langs[i];
+        for (let i = 0, l = langs.length; i < l; i++) {
+            let lang = langs[i];
             children.push({
                 x: 0,
                 y: i,
@@ -964,20 +958,20 @@
                 border: false,
                 classes: 'hmi-dark'
             });
-            var obj = {
+            let obj = {
                 x: 1,
                 y: i,
                 type: 'textfield',
                 editable: true,
                 border: false,
                 classes: 'hmi-dark',
-                prepare: function (that, i_success, i_error) {
-                    this.hmi_addChangeListener(i_adapter.edited);
-                    i_success();
+                prepare: (that, onSuccess, onError) => {
+                    that.hmi_addChangeListener(adapter.edited);
+                    onSuccess();
                 },
-                destroy: function (that, i_success, i_error) {
-                    this.hmi_removeChangeListener(i_adapter.edited);
-                    i_success();
+                destroy: (that, onSuccess, onError) => {
+                    that.hmi_removeChangeListener(adapter.edited);
+                    onSuccess();
                 }
             };
             children.push(obj);
@@ -985,9 +979,9 @@
             rows.push(DEFAULT_ROW_HEIGHT);
         }
         rows.push(1);
-        var get_value = function () {
-            var value = {};
-            for (var lang in values) {
+        function get_value() {
+            let value = {};
+            for (let lang in values) {
                 if (values.hasOwnProperty(lang)) {
                     value[lang] = values[lang].hmi_value().trim();
                 }
@@ -1002,7 +996,7 @@
             keyChanged: reload,
             getValue: get_value
         };
-    };
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // HTML - PREVIEW & EDITOR
@@ -1790,7 +1784,7 @@
             });
         };
         i_adapter.triggerReload = reload;
-        var lab = get_lab_preview(i_hmi, i_adapter);
+        var lab = getLabPreview(i_hmi, i_adapter);
         var htm = get_htm_preview(i_hmi, i_adapter);
         var txt = get_txt_preview(i_hmi, i_adapter);
         var jso = get_jso_preview(i_hmi, i_adapter);
@@ -2075,7 +2069,7 @@
             edit_lang = sel_lang;
             perform_commit(i_value);
         };
-        var lab = get_lab_editor(i_hmi, i_adapter);
+        var lab = getLabEditor(i_hmi, i_adapter);
         var htm = get_htm_editor(i_hmi, i_adapter);
         var txt = get_txt_editor(i_hmi, i_adapter);
         var jso = get_jso_editor(i_hmi, i_adapter);
