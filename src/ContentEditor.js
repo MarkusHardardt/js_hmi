@@ -1927,138 +1927,131 @@
         return container;
     }
 
-    var get_edit_controller = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, unstress = Executor.unstress(i_adapter.notifyError, function () {
-            i_adapter.notifyTimeout(sel_data);
-        }, DEFAULT_TIMEOUT);
-        var editor = false, handler = false, valid_file = false, sel_data = false, sel_cs = false, edit_data = false, edit_cs = false, sel_lang, edit_lang, reload = function () {
-            unstress(function (i_success, i_error) {
+    function getEditController(hmi, adapter) {
+        let cms = hmi.cms, unstress = Executor.unstress(adapter.notifyError, () => adapter.notifyTimeout(sel_data), DEFAULT_TIMEOUT);
+        let editor = false, handler = false, valid_file = false, sel_data = false, sel_cs = false, edit_data = false, edit_cs = false, sel_lang, edit_lang;
+        function reload() {
+            unstress((onSuccess, onError) => {
                 sel_cs = false;
                 handler = sel_data !== false && sel_data.extension ? handlers[sel_data.extension] : false;
-                var next = handler ? handler.cont : false;
+                let next = handler ? handler.cont : false;
                 editListenerEnabled = false;
-                updateContainer(edit_container, editor, next, sel_data, sel_lang, function () {
+                updateContainer(edit_container, editor, next, sel_data, sel_lang, () => {
                     editListenerEnabled = true;
                     editor = next;
                     if (sel_data.file) {
-                        cms.getChecksum(sel_data.file, function (i_checksum) {
-                            sel_cs = i_checksum;
-                            i_success();
-                        }, i_error)
+                        cms.getChecksum(sel_data.file, checksum => {
+                            sel_cs = checksum;
+                            onSuccess();
+                        }, onError)
+                    } else {
+                        onSuccess();
                     }
-                    else {
-                        i_success();
-                    }
-                }, i_error);
+                }, onError);
             });
         };
-        var edited = false, editListenerEnabled = true, pending_commit = false, pending_reset = false;
-        var update = function () {
+        let edited = false, editListenerEnabled = true, pending_commit = false, pending_reset = false;
+        function update() {
             button_commit.hmi_setEnabled(edited && !pending_commit && !pending_reset && edit_data.extension === sel_data.extension);
             button_reset.hmi_setEnabled(edited && !pending_commit && !pending_reset);
             if (edited && !pending_commit && !pending_reset) {
-                var info = 'edited: "';
+                let info = 'edited: "';
                 info += edit_data.id;
                 info += '"';
                 if (edit_data.extension === sel_data.extension) {
                     if (edit_data.id === sel_data.id) {
                         info += ' commit enabled';
-                    }
-                    else {
+                    } else {
                         info += ' commit as: "';
                         info += sel_data.id;
                         info += '"';
                     }
-                }
-                else {
+                } else {
                     info += ' commit disabled - invalid object id';
                 }
-                i_adapter.updateInfo(info);
+                adapter.updateInfo(info);
             }
         };
-        var perform_commit = function (i_value) {
+        function perform_commit(value) {
             pending_commit = true;
             update();
-            var data = i_adapter.getIdData();
+            var data = adapter.getIdData();
             var lang = sel_data.multiedit ? undefined : edit_lang;
-            performModification(i_hmi, edit_cs, edit_data.file, data.file, lang, i_value, function (i_params) {
+            performModification(hmi, edit_cs, edit_data.file, data.file, lang, value, params => {
                 pending_commit = false;
-                if (i_params) {
+                if (params) {
                     edited = false;
                     edit_data = false;
                     edit_cs = false;
                     edit_lang = false;
                     update();
-                    i_adapter.updateInfo('performed commit');
-                    i_adapter.updateScrollParams(i_params);
-                    i_adapter.stateChanged(false, data);
-                }
-                else {
+                    adapter.updateInfo('performed commit');
+                    adapter.updateScrollParams(params);
+                    adapter.stateChanged(false, data);
+                } else {
                     update();
                 }
-            }, function (i_exception) {
+            }, error => {
                 pending_commit = false;
                 edit_data = false;
                 edit_cs = false;
                 edit_lang = false;
                 update();
-                i_adapter.notifyError(i_exception);
+                adapter.notifyError(error);
             });
         };
-        i_adapter.triggerReload = reload;
-        i_adapter.edited = function () {
+        adapter.triggerReload = reload;
+        adapter.edited = () => {
             if (editListenerEnabled && !edited) {
                 edited = true;
                 edit_data = sel_data;
                 edit_cs = sel_cs;
                 edit_lang = sel_lang;
                 update();
-                i_adapter.stateChanged(true);
+                adapter.stateChanged(true);
             }
         };
-        i_adapter.performCommit = function (i_value) {
+        adapter.performCommit = value => {
             edit_data = sel_data;
             edit_cs = sel_cs;
             edit_lang = sel_lang;
-            perform_commit(i_value);
+            perform_commit(value);
         };
-        var lab = getLabEditor(i_hmi, i_adapter);
-        var htm = getHtmEditor(i_hmi, i_adapter);
-        var txt = getTxtEditor(i_hmi, i_adapter);
-        var jso = getJsoEditor(i_hmi, i_adapter);
-        var handlers = {};
-        cms.getDescriptors(function (i_ext, i_desc) {
-            handlers[i_ext] = getHandler(i_desc, lab, htm, txt, jso);
-        });
-        var edit_container = {
+        let lab = getLabEditor(hmi, adapter);
+        let htm = getHtmEditor(hmi, adapter);
+        let txt = getTxtEditor(hmi, adapter);
+        let jso = getJsoEditor(hmi, adapter);
+        let handlers = {};
+        cms.getDescriptors((ext, desc) => handlers[ext] = getHandler(desc, lab, htm, txt, jso));
+        let edit_container = {
             type: 'container'
         };
-        var button_commit = {
+        let button_commit = {
             enabled: false,
             x: 1,
             y: 0,
             border: true,
             text: 'commit',
-            clicked: function () {
+            clicked: () => {
                 try {
                     perform_commit(editor.getValue());
                 }
                 catch (exc) {
-                    i_adapter.notifyError(exc);
+                    adapter.notifyError(exc);
                 }
             }
         };
-        var button_reset = {
+        let button_reset = {
             x: 2,
             y: 0,
             text: 'reset',
             enabled: false,
             border: true,
-            clicked: function () {
+            clicked: () => {
                 edited = false;
                 update();
-                i_adapter.stateChanged(false, sel_data);
-                i_adapter.updateInfo('performed reset');
+                adapter.stateChanged(false, sel_data);
+                adapter.updateInfo('performed reset');
             }
         };
         return {
@@ -2072,9 +2065,9 @@
                 align: 'right',
                 text: 'editor:'
             }, button_commit, button_reset],
-            update: function (i_data, i_language) {
-                sel_data = i_data;
-                sel_lang = i_language;
+            update: (data, lang) => {
+                sel_data = data;
+                sel_lang = lang;
                 if (!edited) {
                     reload();
                 }
@@ -2085,93 +2078,85 @@
             scrolls_txt: txt.scrolls,
             scrolls_jso: jso.scrolls
         };
-    };
+    }
 
-    var getContentEditor = function (i_hmi) {
+    function getContentEditor(hmi) {
         // For every kind of text editors or previews we store the scroll positions
         // so it it easy to switch between objects and stay where you are.
-        var scroll_positions = [];
+        let scroll_positions = [];
         // We show messages and show and collect error messages.
-        var log_handler = getLogHandler(i_hmi);
+        let log_handler = getLogHandler(hmi);
         // All editor controls are encapsulated and do not have any knowledge about
         // any other control.
         // The signals between the controls are handled by the following adapters
         // with define the callbacks used inside the respective control.
-        var language_selector_adapter = {
-            languageChanged: function (i_language) {
-                edit_ctrl.update(key_textfield.getIdData(), i_language);
-                preview.update(references.getIdData(), i_language);
+        let language_selector_adapter = {
+            languageChanged: language => {
+                edit_ctrl.update(key_textfield.getIdData(), language);
+                preview.update(references.getIdData(), language);
             }
         };
-        var key_textfield_adapter = {
-            keyEdited: function (i_data) {
-                references.setRootIdData(i_data);
-                refactoring.update(i_data);
-                edit_ctrl.update(i_data, language_selector.getLanguage());
-                preview.update(i_data, language_selector.getLanguage());
+        let key_textfield_adapter = {
+            keyEdited: data => {
+                references.setRootIdData(data);
+                refactoring.update(data);
+                edit_ctrl.update(data, language_selector.getLanguage());
+                preview.update(data, language_selector.getLanguage());
             },
-            keySelected: function (i_data) {
+            keySelected: data => {
                 if (browser_tree.hmi_isVisible()) {
-                    browser_tree.expand(i_data);
+                    browser_tree.expand(data);
                 }
-                references.setRootIdData(i_data);
-                refactoring.update(i_data);
-                edit_ctrl.update(i_data, language_selector.getLanguage());
-                preview.update(i_data, language_selector.getLanguage());
+                references.setRootIdData(data);
+                refactoring.update(data);
+                edit_ctrl.update(data, language_selector.getLanguage());
+                preview.update(data, language_selector.getLanguage());
             }
         };
-        var browser_tree_adapter = {
+        let browser_tree_adapter = {
             notifyError: log_handler.pushError,
-            notifyTimeout: function (i_data) {
-                log_handler.pushTimeout('timeout loading browser: "' + i_data.id + '"');
-            },
-            keySelected: function (i_data) {
-                key_textfield.update(i_data);
-                references.setRootIdData(i_data);
-                refactoring.update(i_data);
-                edit_ctrl.update(i_data, language_selector.getLanguage());
-                preview.update(i_data, language_selector.getLanguage());
+            notifyTimeout: data => log_handler.pushTimeout('timeout loading browser: "' + data.id + '"'),
+            keySelected: data => {
+                key_textfield.update(data);
+                references.setRootIdData(data);
+                refactoring.update(data);
+                edit_ctrl.update(data, language_selector.getLanguage());
+                preview.update(data, language_selector.getLanguage());
             }
         };
-        var search_container_adapter = {
+        let search_container_adapter = {
             notifyError: log_handler.pushError,
-            keySelected: function (i_data) {
-                key_textfield.update(i_data);
-                references.setRootIdData(i_data);
-                refactoring.update(i_data);
-                edit_ctrl.update(i_data, language_selector.getLanguage());
-                preview.update(i_data, language_selector.getLanguage());
+            keySelected: data => {
+                key_textfield.update(data);
+                references.setRootIdData(data);
+                refactoring.update(data);
+                edit_ctrl.update(data, language_selector.getLanguage());
+                preview.update(data, language_selector.getLanguage());
             }
         };
-        var references_adapter = {
+        let references_adapter = {
             notifyError: log_handler.pushError,
-            notifyTimeout: function (i_data) {
-                log_handler.pushTimeout('timeout loading references: "' + i_data.id + '"');
-            },
-            keySelected: function (i_data) {
-                preview.update(i_data, language_selector.getLanguage());
-            },
-            selectInNavigator: function (i_data) {
-                key_textfield.update(i_data);
+            notifyTimeout: data => log_handler.pushTimeout('timeout loading references: "' + data.id + '"'),
+            keySelected: data => preview.update(data, language_selector.getLanguage()),
+            selectInNavigator: data => {
+                key_textfield.update(data);
                 navigator.showBrowser();
-                browser_tree.expand(i_data);
-                references.setRootIdData(i_data);
-                refactoring.update(i_data);
-                edit_ctrl.update(i_data, language_selector.getLanguage());
-                preview.update(i_data, language_selector.getLanguage());
+                browser_tree.expand(data);
+                references.setRootIdData(data);
+                refactoring.update(data);
+                edit_ctrl.update(data, language_selector.getLanguage());
+                preview.update(data, language_selector.getLanguage());
             }
         };
-        var refactoring_adapter = {
+        let refactoring_adapter = {
             updateInfo: log_handler.updateInfo,
             notifyError: log_handler.pushError,
-            updateScrollParams: function (i_params) {
-                updateScrolls(scroll_positions, i_params);
-            },
-            reload: function (i_data) {
-                if (i_data) {
-                    key_textfield.update(i_data);
+            updateScrollParams: params => updateScrolls(scroll_positions, params),
+            reload: data => {
+                if (data) {
+                    key_textfield.update(data);
                 }
-                var data = key_textfield.getIdData();
+                let data = key_textfield.getIdData();
                 if (browser_tree.hmi_isVisible()) {
                     browser_tree.expand(data);
                 }
@@ -2183,71 +2168,63 @@
                 log_handler.reset();
             }
         };
-        var navigator_adapter = {
-            showBrowserTree: function () {
+        let navigator_adapter = {
+            showBrowserTree: () => {
                 search_container.hmi_setVisible(false);
                 browser_tree.hmi_setVisible(true);
                 browser_tree.hmi_updateLoadedNodes();
             },
-            showSearchTable: function () {
+            showSearchTable: () => {
                 browser_tree.hmi_setVisible(false);
                 search_container.hmi_setVisible(true);
             },
-            reload: function () {
+            reload: () => {
                 if (browser_tree.hmi_isVisible()) {
                     browser_tree.hmi_updateLoadedNodes();
                 }
-                var data = key_textfield.getIdData();
+                let data = key_textfield.getIdData();
                 references.setRootIdData(data);
                 refactoring.update(data);
                 edit_ctrl.update(data, language_selector.getLanguage());
                 preview.update(data, language_selector.getLanguage());
             }
         };
-        var edit_ctrl_adapter = {
+        let edit_ctrl_adapter = {
             notifyError: log_handler.pushError,
-            notifyTimeout: function (i_data) {
-                log_handler.pushTimeout('timeout loading editor: "' + i_data.id + '"');
-            },
+            notifyTimeout: data => log_handler.pushTimeout('timeout loading editor: "' + data.id + '"'),
             updateInfo: log_handler.updateInfo,
-            getIdData: function () {
-                return key_textfield.getIdData();
-            },
-            updateScrollParams: function (i_params) {
-                updateScrolls(scroll_positions, i_params);
-            },
-            stateChanged: function (i_edited, i_data) {
-                refactoring.setEnabled(!i_edited);
-                if (!i_edited) {
-                    key_textfield.update(i_data);
+            getIdData: () => key_textfield.getIdData(),
+            updateScrollParams: params => updateScrolls(scroll_positions, params),
+            stateChanged: (edited, data) => {
+                refactoring.setEnabled(!edited);
+                if (!edited) {
+                    key_textfield.update(data);
                     if (browser_tree.hmi_isVisible()) {
-                        browser_tree.expand(i_data);
+                        browser_tree.expand(data);
                     }
-                    references.setRootIdData(i_data);
-                    refactoring.update(i_data);
-                    edit_ctrl.update(i_data, language_selector.getLanguage());
-                    preview.update(i_data, language_selector.getLanguage());
+                    references.setRootIdData(data);
+                    refactoring.update(data);
+                    edit_ctrl.update(data, language_selector.getLanguage());
+                    preview.update(data, language_selector.getLanguage());
                     // TODO correct to call this here?
                     log_handler.reset();
                 }
             }
         };
-        var preview_adapter = {
+        let preview_adapter = {
             notifyError: log_handler.pushError,
-            notifyTimeout: function (i_data) {
-                log_handler.pushTimeout('timeout loading preview: "' + i_data.id + '"');
-            }
+            notifyTimeout: data => log_handler.pushTimeout('timeout loading preview: "' + data.id + '"')
         };
         // CONTROLS
-        var language_selector = getLanguageSelector(i_hmi, language_selector_adapter);
-        var key_textfield = getKeyTextfield(i_hmi, key_textfield_adapter);
-        var browser_tree = getBrowserTree(i_hmi, browser_tree_adapter);
-        var search_container = getSearchContainer(i_hmi, search_container_adapter);
-        var navigator = getNavigator(i_hmi, navigator_adapter, key_textfield, browser_tree, search_container);
-        var references = getReferences(i_hmi, references_adapter);
-        var refactoring = getRefactoring(i_hmi, refactoring_adapter);
-        var edit_ctrl = get_edit_controller(i_hmi, edit_ctrl_adapter);
-        var preview = getPreview(i_hmi, preview_adapter);
+        let language_selector = getLanguageSelector(hmi, language_selector_adapter);
+        let key_textfield = getKeyTextfield(hmi, key_textfield_adapter);
+        let browser_tree = getBrowserTree(hmi, browser_tree_adapter);
+        let search_container = getSearchContainer(hmi, search_container_adapter);
+        let navigator = getNavigator(hmi, navigator_adapter, key_textfield, browser_tree, search_container);
+        let references = getReferences(hmi, references_adapter);
+        let refactoring = getRefactoring(hmi, refactoring_adapter);
+        let edit_ctrl = getEditController(hmi, edit_ctrl_adapter);
+        let preview = getPreview(hmi, preview_adapter);
         // SCROLL POSITIONS
         scroll_positions.push(edit_ctrl.scrolls_htm);
         scroll_positions.push(edit_ctrl.scrolls_txt);
@@ -2263,7 +2240,7 @@
         refactoring.y = 0;
         edit_ctrl.x = 2;
         edit_ctrl.y = 0;
-        var header = {
+        let header = {
             x: 0,
             y: 0,
             type: 'grid',
@@ -2276,7 +2253,7 @@
         log_handler.y = 0;
         log_handler.info.x = 1;
         log_handler.info.y = 0;
-        var footer = {
+        let footer = {
             x: 0,
             y: 2,
             type: 'grid',
@@ -2287,12 +2264,12 @@
             children: [log_handler, log_handler.info, {
                 x: 2,
                 y: 0,
-                refresh: function (i_date) {
+                refresh: date => {
                     // clock (updates every second)
-                    var last = this._last, sec = Math.ceil(i_date.getTime() / 1000);
+                    var last = footer._last, sec = Math.ceil(date.getTime() / 1000);
                     if (last !== sec) {
                         last = sec;
-                        this.hmi_text(i_date.toLocaleString());
+                        footer.hmi_text(date.toLocaleString());
                     }
                 }
             }]
@@ -2322,7 +2299,7 @@
                 }]
             }, footer]
         };
-    };
+    }
 
     window.getContentEditor = getContentEditor;
 }());
