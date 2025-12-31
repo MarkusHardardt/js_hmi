@@ -1,8 +1,8 @@
 {
   "production": false,
   "static_client_files": [],
-  "scrollbar_config": "./cfg/ui/scrollbar-desktop.css",
-  "scrollbar_hmi": "./cfg/ui/scrollbar-touch.css",
+  "scrollbar_config": "./ui/scrollbar-desktop.css",
+  "scrollbar_hmi": "./ui/scrollbar-touch.css",
   "touch": false,
   "cms_roots": "TODO: edit cms link to roots array [{url:'...',id:'$path/file.ext'},...]",
   "jsonfx_pretty": true,

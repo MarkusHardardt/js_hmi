@@ -50,8 +50,8 @@
     hmi.lib.regex = Regex;
     hmi.lib.sql = SqlHelper;
     // add hmi-object-framweork
-    hmi.create = (object, element, onSuccess, onError, initData) => hmi_object.create(object, element, onSuccess, onError, hmi, initData);
-    hmi.destroy = hmi_object.destroy;
+    hmi.create = (object, element, onSuccess, onError, initData) => ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
+    hmi.destroy = ObjectLifecycleManager.destroy;
     hmi.env = {
         isInstance: instance => false, // TODO: Implement isInstance(instance)
         isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
@@ -84,6 +84,7 @@
     webServer.AddStaticFile('./ext/jquery/dataTables.pageResize.min.js');
     webServer.AddStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
     */
+   /*
     webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.css');
     webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.js');
     webServer.AddStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
@@ -101,6 +102,9 @@
     webServer.AddStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
     webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
     webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
+    */
+    webServer.AddStaticFile('./node_modules/codemirror/dist/index.js');
+
     webServer.AddStaticFile('./node_modules/file-saver/dist/' + (minimized ? 'FileSaver.min.js' : 'FileSaver.js'));
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify.js');
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-html.js');
@@ -150,9 +154,11 @@
     addStaticFiles(main_config.static_client_files);
     webServer.AddStaticFile(main_config.touch ? main_config.scrollbar_hmi : main_config.scrollbar_config);
 
+    const tasks = [];
+
     tasks.push((onSuccess, onError) => {
         if (typeof main_config.server.cycle_millis === 'number' && main_config.server.cycle_millis > 0) {
-            setInterval(() => hmi_object.refresh(new Date()), main_config.server.cycle_millis);
+            setInterval(() => ObjectLifecycleManager.refresh(new Date()), main_config.server.cycle_millis);
             onSuccess();
         } else {
             onError('Invalid cycle millis');
@@ -164,7 +170,7 @@
         // start server if required
         if (typeof main_config.server.web_server_port === 'number') {
             webServer.Listen(main_config.server.web_server_port, function () {
-                console.log('hmijs web server listening on port: ' + main_config.server.web_server_port);
+                console.log('js hmi web server listening on port: ' + main_config.server.web_server_port);
             });
         }
     }, error => console.error(error));

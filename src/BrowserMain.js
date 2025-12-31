@@ -16,11 +16,10 @@
     hmi.droppables = {};
 
     // add hmi-object-framweork
-    const hmi_object = window.hmi_object;
-    hmi.create = (object, element, onSuccess, onError, initData) => hmi_object.create(object, element, onSuccess, onError, hmi, initData);
-    hmi.destroy = hmi_object.destroy;
-    hmi.showPopup = (config, onSuccess, onError) => hmi_object.showPopup(hmi, config, onSuccess, onError);
-    hmi.showDefaultConfirmationPopup(config, onSuccess, onError)  => hmi_object.showDefaultConfirmationPopup(hmi, config, onSuccess, onError);
+    hmi.create = (object, element, onSuccess, onError, initData) => ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
+    hmi.destroy = ObjectLifecycleManager.destroy;
+    hmi.showPopup = (config, onSuccess, onError) => ObjectLifecycleManager.showPopup(hmi, config, onSuccess, onError);
+    hmi.showDefaultConfirmationPopup = (config, onSuccess, onError) => ObjectLifecycleManager.showDefaultConfirmationPopup(hmi, config, onSuccess, onError);
     // all static files have been loaded and now we create the hmi.
     $(() => {
         const main = [];
@@ -61,7 +60,7 @@
                 raf_idx++;
                 if (raf_idx >= raf_cycle) {
                     raf_idx = 0;
-                    hmi_object.refresh(new Date());
+                    ObjectLifecycleManager.refresh(new Date());
                 }
                 window.requestAnimationFrame(loop, document.body);
             };
