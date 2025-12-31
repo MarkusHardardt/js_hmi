@@ -136,7 +136,7 @@
         }
         Executor.run(tasks, () => {
             if (equal_id && startEditChecksum !== checksum) {
-                var txt = '<b>';
+                let txt = '<b>';
                 txt += 'Object has been modified!';
                 txt += '</b><br><code>';
                 txt += id;
@@ -150,8 +150,7 @@
                     ok: () => onSuccess(false),
                     closed: () => onSuccess(false)
                 });
-            }
-            else {
+            } else {
                 cms.getModificationParams(id, language, value, params => {
                     if (typeof params.error === 'string') {
                         if (typeof onError === 'function') {
@@ -217,115 +216,86 @@
         }, onError);
     }
 
-    var perform_refactoring = function (i_hmi, i_source, i_target, i_action, i_success, i_error) {
-        var cms = i_hmi.cms;
-        cms.getRefactoringParams(i_source, i_target, i_action, function (i_params) {
+    function performRefactoring(hmi, source, target, action, onSuccess, onEerror) {
+        var cms = hmi.cms;
+        cms.getRefactoringParams(source, target, action, params => {
             // console.log(JSONX.stringify(i_params));
-            if (typeof i_params.error === 'string') {
-                i_hmi.showDefaultConfirmationPopup({
+            if (typeof params.error === 'string') {
+                hmi.showDefaultConfirmationPopup({
                     width: $(window).width() * 0.8,
                     height: $(window).height() * 0.8,
                     title: 'Warning',
-                    html: i_params.error,
-                    ok: function () {
-                        i_success(false);
-                    },
-                    closed: function () {
-                        i_success(false);
-                    }
+                    html: params.error,
+                    ok: () => onSuccess(false),
+                    closed: () => onSuccess(false)
                 });
-            }
-            else if (i_params.action === ContentManager.DELETE) {
+            } else if (params.action === ContentManager.DELETE) {
                 var txt = '';
-                if (i_params.externalUsers !== undefined && $.isArray(i_params.externalUsers) && i_params.externalUsers.length > 0) {
+                if (params.externalUsers !== undefined && Array.isArray(params.externalUsers) && params.externalUsers.length > 0) {
                     txt += '<b>';
                     txt += 'Object is referenced!';
                     txt += '</b><br><code>';
-                    for (var i = 0; i < i_params.externalUsers.length; i++) {
+                    for (var i = 0; i < params.externalUsers.length; i++) {
                         if (i > 10) {
                             txt += '<br>...';
                             break;
                         }
                         txt += '<br>';
-                        txt += i_params.externalUsers[i];
+                        txt += params.externalUsers[i];
                     }
                     txt += '</code>';
-                }
-                else {
+                } else {
                     txt += '<b>';
                     txt += 'Delete:';
                     txt += ':</b><br><code>';
-                    txt += i_source;
+                    txt += source;
                     txt += '</code>';
                 }
                 txt += '<br><br><b>';
                 txt += 'Sure to proceed?';
                 txt += '</b>';
-                i_hmi.showDefaultConfirmationPopup({
+                hmi.showDefaultConfirmationPopup({
                     width: $(window).width() * 0.8,
                     height: $(window).height() * 0.8,
                     title: 'Warning',
                     html: txt,
-                    yes: function () {
-                        cms.performRefactoring(i_source, i_target, i_action, i_params.checksum, function () {
-                            i_success(i_params);
-                        }, i_error);
-                    },
-                    cancel: function () {
-                        i_success(false);
-                    },
-                    closed: function () {
-                        i_success(false);
-                    }
+                    yes: () => cms.performRefactoring(source, target, action, params.checksum, () => onSuccess(params), onEerror),
+                    cancel: () => onSuccess(false),
+                    closed: () => onSuccess(false)
                 });
-            }
-            else if (i_params.action === ContentManager.MOVE || i_params.action === ContentManager.COPY) {
-                if (i_params.existingTargets !== undefined && $.isArray(i_params.existingTargets) && i_params.existingTargets.length > 0) {
+            } else if (params.action === ContentManager.MOVE || params.action === ContentManager.COPY) {
+                if (params.existingTargets !== undefined && Array.isArray(params.existingTargets) && params.existingTargets.length > 0) {
                     var txt = '<b>';
                     txt += 'Object already exists!';
                     txt += '</b><br><code>';
-                    for (var i = 0; i < i_params.existingTargets.length; i++) {
+                    for (var i = 0; i < params.existingTargets.length; i++) {
                         if (i > 10) {
                             txt += '<br>...';
                             break;
                         }
                         txt += '<br>';
-                        txt += i_params.existingTargets[i];
+                        txt += params.existingTargets[i];
                     }
                     txt += '</code>';
                     txt += '<br><br><b>';
                     txt += 'Sure to proceed?';
                     txt += '</b>';
-                    i_hmi.showDefaultConfirmationPopup({
+                    hmi.showDefaultConfirmationPopup({
                         width: $(window).width() * 0.8,
                         height: $(window).height() * 0.8,
                         title: 'Warning',
                         html: txt,
-                        yes: function () {
-                            cms.performRefactoring(i_source, i_target, i_action, i_params.checksum, function () {
-                                i_success(i_params);
-                            }, i_error);
-                        },
-                        cancel: function () {
-                            i_success(false);
-                        },
-                        closed: function () {
-                            i_success(false);
-                        }
+                        yes: () => cms.performRefactoring(source, target, action, params.checksum, () => onSuccess(params), onEerror),
+                        cancel: () => onSuccess(false),
+                        closed: () => onSuccess(false)
                     });
+                } else {
+                    cms.performRefactoring(source, target, action, params.checksum, () => onSuccess(params), onEerror);
                 }
-                else {
-                    cms.performRefactoring(i_source, i_target, i_action, i_params.checksum, function () {
-                        i_success(i_params);
-                    }, i_error);
-                }
+            } else {
+                onSuccess(false);
             }
-            else {
-                if (typeof i_callback === 'function') {
-                    i_success(false);
-                }
-            }
-        }, i_error);
+        }, onEerror);
     };
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1960,7 +1930,7 @@
             enabled: false,
             border: true,
             clicked: function () {
-                perform_refactoring(i_hmi, source.id, sel_data.id, mode, function (i_params) {
+                performRefactoring(i_hmi, source.id, sel_data.id, mode, function (i_params) {
                     var m = mode;
                     mode = false;
                     source = false;
@@ -1983,7 +1953,7 @@
             enabled: false,
             border: true,
             clicked: function () {
-                perform_refactoring(i_hmi, sel_data.id, undefined, ContentManager.DELETE, function (i_params) {
+                performRefactoring(i_hmi, sel_data.id, undefined, ContentManager.DELETE, function (i_params) {
                     mode = false;
                     source = false;
                     update();
