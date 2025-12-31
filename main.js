@@ -40,7 +40,7 @@
     const config = require(configFile);
 
     // create 'hmi' environment object
-    const hmi = {}; // TODO: => "sys"
+    const hmi = {}; // TODO: -> "sys"
     // here we add our libraries
     hmi.lib = {};
     // load math
@@ -50,17 +50,23 @@
     hmi.lib.regex = Regex;
     hmi.lib.sql = SqlHelper;
     // add hmi-object-framweork
-    hmi.create = (object, element, onSuccess, onError, initData) => ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
+    hmi.create = function (object, element, onSuccess, onError, initData) {
+        ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
+    };
     hmi.destroy = ObjectLifecycleManager.destroy;
     hmi.env = {
-        isInstance: instance => false, // TODO: Implement isInstance(instance)
-        isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
+        isInstance: function (instance) {
+            return false;
+        }, // TODO: Implement isInstance(instance)
+        isSimulationEnabled: function () {
+            return false;
+        } // TODO: Implement isSimulationEnabled()
     };
 
     // Prepare web server
     const minimized = true;
     const webServer = new WebServer.Server({ secureKeyFile: config.secureKeyFile, secureCertFile: config.secureCertFile });
-    webServer.RandomFileIdenabled = false;
+    webServer.RandomFileIdEnabled = false;
     webServer.SetTitle('js hmi');
     webServer.AddStaticDir('./images', 'images');
     webServer.PrepareFavicon('images/favicon.ico');
@@ -91,7 +97,7 @@
     webServer.AddStaticFile('./ext/jquery/dataTables.pageResize.min.js');
     webServer.AddStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
     */
-    // TODO: https://codemirror.net/docs/migration/   => CodeMirror.fromTextArea
+    // TODO: https://codemirror.net/docs/migration/   --> CodeMirror.fromTextArea
     webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.css');
     webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.js');
     webServer.AddStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
@@ -131,7 +137,9 @@
     body += '</script>\n';
     webServer.SetBody(body); */
     // deliver main config to client
-    webServer.Post('/get_client_config', (request, response) => response.send(jsonfx.stringify(main_config.client, false)));
+    webServer.Post('/get_client_config', function (request, response) {
+        response.send(jsonfx.stringify(main_config.client, false));
+    });
 
     // prepare content management system
     // we need the handler for database access
@@ -142,18 +150,26 @@
     db_config.jsonfx_pretty = main_config.jsonfx_pretty === true;
     hmi.cms = new ContentManager(sqlHelper.createAdapter, db_config);
     // we need access via ajax from clients
-    webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
+    webServer.Post(ContentManager.GET_CONTENT_DATA_URL, function (request, response) {
         hmi.cms.handleRequest(request.body,
-            result => response.send(jsonfx.stringify(result, false)),
-            error => response.send(jsonfx.stringify(error.toString(), false))
+            function (result) {
+                response.send(jsonfx.stringify(result, false));
+            },
+            function (error) {
+                response.send(jsonfx.stringify(error.toString(), false));
+            }
         );
     });
     // the tree control requests da via 'GET' so we handle those request
     // separately
-    webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, (request, response) => {
+    webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, function (request, response) {
         hmi.cms.handleFancyTreeRequest(request.query.request, request.query.path,
-            result => response.send(jsonfx.stringify(result, false)),
-            error => response.send(jsonfx.stringify(error.toString(), false))
+            function (result) {
+                response.send(jsonfx.stringify(result, false));
+            },
+            function (error) {
+                response.send(jsonfx.stringify(error.toString(), false));
+            }
         );
     });
     function addStaticFiles(file) {
@@ -170,16 +186,18 @@
 
     const tasks = [];
 
-    tasks.push((onSuccess, onError) => {
+    tasks.push(function (onSuccess, onError) {
         if (typeof main_config.server.cycle_millis === 'number' && main_config.server.cycle_millis > 0) {
-            setInterval(() => ObjectLifecycleManager.refresh(new Date()), main_config.server.cycle_millis);
+            setInterval(function () {
+                ObjectLifecycleManager.refresh(new Date());
+            }, main_config.server.cycle_millis);
             onSuccess();
         } else {
             onError('Invalid cycle millis');
         }
     });
     // finally ...
-    Executor.run(tasks, () => {
+    Executor.run(tasks, function () {
         Object.seal(hmi);
         // start server if required
         if (typeof main_config.server.web_server_port === 'number') {
@@ -187,5 +205,7 @@
                 console.log('js hmi web server listening on port: ' + main_config.server.web_server_port);
             });
         }
-    }, error => console.error(error));
+    }, function (error) {
+        console.error(error);
+    });
 }());
