@@ -1,0 +1,117 @@
+/* this targets the default scrollbar (compulsory) */
+::-webkit-scrollbar {
+  width: 42px;
+  height: 42px;
+}
+
+::-webkit-scrollbar-button:vertical:decrement {
+  background: url('arrow-up.png') no-repeat;
+  background-size: 38px 38px;
+  background-position: center;
+  min-height: 42px;
+  min-width: 42px;
+  background-color: rgb(56,55,58);
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: rgb(76,76,76);
+  border-left-color: rgb(76,76,76);
+  border-bottom-color: rgb(38,37,40);
+  border-right-color: rgb(38,37,40);
+  -webkit-border-radius: 6px;
+}
+
+::-webkit-scrollbar-button:vertical:increment {
+  background: url('arrow-down.png') no-repeat;
+  background-size: 38px 38px;
+  background-position: center;
+  min-height: 42px;
+  min-width: 42px;
+  background-color: rgb(56,55,58);
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: rgb(76,76,76);
+  border-left-color: rgb(76,76,76);
+  border-bottom-color: rgb(38,37,40);
+  border-right-color: rgb(38,37,40);
+  -webkit-border-radius: 6px;
+}
+
+::-webkit-scrollbar-button:horizontal:decrement {
+  background: url('arrow-left.png') no-repeat;
+  background-size: 38px 38px;
+  background-position: center;
+  min-height: 42px;
+  min-width: 42px;
+  background-color: rgb(56,55,58);
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: rgb(76,76,76);
+  border-left-color: rgb(76,76,76);
+  border-bottom-color: rgb(38,37,40);
+  border-right-color: rgb(38,37,40);
+  -webkit-border-radius: 6px;
+}
+
+::-webkit-scrollbar-button:horizontal:increment {
+  background: url('arrow-right.png') no-repeat;
+  background-size: 38px 38px;
+  background-position: center;
+  min-height: 42px;
+  min-width: 42px;
+  background-color: rgb(56,55,58);
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: rgb(76,76,76);
+  border-left-color: rgb(76,76,76);
+  border-bottom-color: rgb(38,37,40);
+  border-right-color: rgb(38,37,40);
+  -webkit-border-radius: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: rgb(56,55,58);
+}
+
+::-webkit-scrollbar-track-piece {
+  background-color: rgb(46,45,48);
+}
+
+::-webkit-scrollbar-thumb:vertical {
+  background: url('arrow-up-down.png') no-repeat;
+  background-size: 38px 38px;
+  background-position: center;
+  min-height: 42px;
+  min-width: 42px;
+  background-color: rgb(56,55,58);
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: rgb(76,76,76);
+  border-left-color: rgb(76,76,76);
+  border-bottom-color: rgb(38,37,40);
+  border-right-color: rgb(38,37,40);
+  -webkit-border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+  background: url('arrow-left-right.png') no-repeat;
+  background-size: 38px 38px;
+  background-position: center;
+  min-height: 42px;
+  min-width: 42px;
+  background-color: rgb(56,55,58);
+  border-style: solid;
+  border-width: 2px;
+  border-top-color: rgb(76,76,76);
+  border-left-color: rgb(76,76,76);
+  border-bottom-color: rgb(38,37,40);
+  border-right-color: rgb(38,37,40);
+  -webkit-border-radius: 6px;
+}
+
+::-webkit-scrollbar-corner {
+  background-color: rgb(56,55,58);
+}
+
+.ui-dialog.ui-widget-content {
+  background: rgb(42,42,42);
+}

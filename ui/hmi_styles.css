@@ -1,0 +1,333 @@
+.empty {
+  
+}
+
+/*
+We need to set on both - 'html' and 'body'- the dimension to 100% 
+to make our hmi fit info the whole window.    
+*/
+html {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* overwrite default in ./node_modules/jquery-ui-dist/jquery-ui.css because of dark background */
+.ui-dialog .ui-dialog-content {
+	position: relative;
+	border: 0;
+	padding: .5em 1em;
+	background: #F0F0F0;
+	overflow: auto;
+}
+
+.hmi-body {
+  font-family: 'Verdana';
+  font-size: 12px;
+  color: #000000;
+  background: #eeeeee;
+}
+
+.hmi-light {
+  background: #F0F0F0;
+}
+
+.hmi-dark {
+  background: #E1E1E1;
+}
+
+.hmi-button-disabled {
+  color: #D0D0D0;
+}
+
+.hmi-cursor-pointer {
+  cursor: pointer;
+}
+
+.hmi-border {
+  border-style: solid;
+  border-width: 2px;
+  border-left-color: #b3b3b3;
+  border-right-color: #b3b3b3;
+  border-top-color: #b3b3b3;
+  border-bottom-color: #b3b3b3;
+  -webkit-border-radius: 6px;
+}
+
+.hmi-border-embossed {
+  border-style: solid;
+  border-width: 2px;
+  border-left-color: #cdcdcd;
+  border-right-color: #c0c0c0;
+  border-top-color: #dadada;
+  border-bottom-color: #b3b3b3;
+  -webkit-border-radius: 6px;
+}
+
+.hmi-border-engraved {
+  border-style: solid;
+  border-width: 2px;
+  border-left-color: #c0c0c0;
+  border-right-color: #cdcdcd;
+  border-top-color: #b3b3b3;
+  border-bottom-color: #dadada;
+  -webkit-border-radius: 6px;
+}
+
+.hmi-selected {
+  background: -webkit-linear-gradient(top, #aaaaaaaa, #777777);
+  background-color: #aaaaaaaa;
+}
+
+table.dataTable tbody tr.row_selected {
+  background-color: lightgrey !important;
+  color: black !important;
+}
+
+.border-round {
+  -webkit-border-radius: 10px;
+}
+
+.cm-matchhighlight {
+	/* this must  be transparent because otherwise we cannot see selection highlighting on search-and-replace */
+	background-color: rgba(0,255,0,0.247)
+}
+
+.CodeMirror-selection-highlight-scrollbar {
+	background-color: green
+}
+
+.cm-s-default .cm-comment {
+  color: #67B97B;
+}
+
+/*
+.body-export {
+  font-family: 'Verdana';
+  font-size: 13px;
+  color: #000000;
+  background: #FFFFFF;
+  margin: 0;
+  padding: 0;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.headerlogo {
+  background-image: url('Logo.png');
+  background-repeat: no-repeat;
+  min-height: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+}
+*/
+.dateImg {
+  background-image: url('Kalender.png');
+  background-repeat: no-repeat;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/*
+.diagnosticHeader {
+  margin-left: 274px;
+  border-spacing: 0px;
+}
+*/
+.default-data-field {
+  text-align: right;
+  padding-right: 2px;
+  padding-left: 2px;
+}
+
+.default-data-field-value {
+  font-size: 22px;
+}
+
+.default-border-box {
+  box-sizing: border-box;
+}
+
+.font-bold {
+  font-weight: bold;
+}
+
+/*
+.defaultbutton {
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-weight: bold;
+  line-height: 25px;
+  cursor: pointer;
+}
+*/
+
+.defaultcheckbutton {
+  text-align: left;
+  text-decoration: none;
+  display: inline-block;
+  font-weight: bold;
+  line-height: 25px;
+  cursor: pointer;
+}
+
+.highlighted-white {
+  background: -webkit-linear-gradient(top, rgb(180, 180, 180),
+    rgb(255, 255, 255));
+  background-color: rgb(180, 180, 180);
+}
+
+.highlighted-grey {
+  background: -webkit-linear-gradient(top, rgb(85, 85, 85),
+    rgb(136, 136, 136));
+  background-color: rgb(85, 85, 85);
+}
+
+.highlighted-grey-dark {
+  background: -webkit-linear-gradient(top, rgb(24, 24, 24),
+    rgb(42, 42, 42));
+  background-color: rgb(85, 85, 85);
+}
+
+.highlighted-green {
+  background: -webkit-linear-gradient(top, rgb(0, 98, 0), rgb(0, 242, 0));
+  background-color: rgb(0, 170, 0);
+}
+
+.highlighted-green-dark {
+  background: -webkit-linear-gradient(top, rgb(0, 32, 0), rgb(0, 64, 0));
+  background-color: rgb(0, 170, 0);
+}
+
+.highlighted-red {
+  background: -webkit-linear-gradient(top, rgb(98, 0, 0), rgb(242, 0, 0));
+  background-color: rgb(170, 0, 0);
+}
+
+.highlighted-red-dark {
+  background: -webkit-linear-gradient(top, rgb(32, 0, 0), rgb(64, 0, 0));
+  background-color: rgb(170, 0, 0);
+}
+
+.highlighted-blue {
+  background: -webkit-linear-gradient(top, rgb(0, 0, 98), rgb(0, 0, 242));
+  background-color: rgb(0, 0, 170);
+}
+
+.highlighted-blue-dark {
+  background: -webkit-linear-gradient(top, rgb(0, 0, 32), rgb(0, 0, 64));
+  background-color: rgb(0, 0, 170);
+}
+
+.highlighted-yellow {
+  /*background: -webkit-linear-gradient(top, rgb(117, 87, 0), rgb(245, 153, 0));
+  background-color: rgb(235, 143, 0);*/
+  background: -webkit-linear-gradient(top, rgb(100, 100, 0),
+    rgb(245, 245, 0));
+  background-color: rgb(235, 143, 0);
+}
+
+.highlighted-yellow-dark {
+  background: -webkit-linear-gradient(top, rgb(70, 32, 0), rgb(180, 64, 0));
+  background-color: rgb(235, 143, 0);
+}
+
+.background-red-light {
+  background: rgb(255, 127, 127);
+}
+
+.default-background-white {
+  background: white;
+  color: black;
+}
+
+.default-background-hover {
+  background: rgb(70, 75, 78) !important;
+}
+
+.overflow-hidden {
+  /* be carefull with this: draggables might be invisible and - even worse - not droppable on buttons! */
+  overflow: hidden !important;
+}
+
+.default-scroll-container {
+  overflow: auto;
+}
+
+.defaultcontainer {
+  display: block;
+  position: absolute;
+  height: auto;
+  bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-style: solid;
+  border-width: 2px;
+  border-bottom-color: rgb(76, 76, 76);
+  border-right-color: rgb(76, 76, 76);
+  border-top-color: rgb(38, 37, 40);
+  border-left-color: rgb(38, 37, 40);
+  -webkit-border-radius: 6px;
+  background: rgb(46, 45, 48);
+  padding: 2px;
+}
+
+/* TODO remove if realy not used ??? */
+.defaultblock {
+  display: block;
+  position: absolute;
+  height: auto;
+  bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+/* TODO remove if still unused */
+.defaultpanel {
+  /*
+   display: block;
+   position: absolute;
+   height: auto;
+   bottom: 0;
+   top: 0;
+   left: 0;
+   right: 0;
+   margin-top: 2px;
+   margin-bottom: 2px;
+   margin-right: 2px;
+   margin-left: 2px;
+   */
+  border-style: solid;
+  border-width: 2px;
+  border-bottom-color: rgb(38, 37, 40);
+  border-right-color: rgb(38, 37, 40);
+  border-top-color: rgb(76, 76, 76);
+  border-left-color: rgb(76, 76, 76);
+}
+
+/* TODO remove if still unused */
+.defaultpanelborder {
+  border-style: solid;
+  border-width: 2px;
+  border-bottom-color: rgb(38, 37, 40);
+  border-right-color: rgb(38, 37, 40);
+  border-top-color: rgb(76, 76, 76);
+  border-left-color: rgb(76, 76, 76);
+  padding: 2px;
+}
+
+.rotate180 {
+  -webkit-transform: rotate(180deg);
+  transform: rotate(180deg);
+}
