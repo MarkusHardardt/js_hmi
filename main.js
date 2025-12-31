@@ -106,12 +106,14 @@
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-html.js');
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-css.js');
     addStaticWebServerJsUtilsFiles(webServer);
+    // TODO only in config mode
+    webServer.AddStaticFile('./src/ContentEditor.js');
+    // add the final static file: our hmi main loader
+    webServer.AddStaticFile('./src/BrowserMain.js');
     // No content - will be generated at runtime inside browser
     webServer.SetBody('');
     // deliver main config to client
-    webServer.Post('/get_client_config', (request, response) => {
-        response.send(jsonfx.stringify(main_config.client, false));
-    });
+    webServer.Post('/get_client_config', (request, response) => response.send(jsonfx.stringify(main_config.client, false)));
 
     // prepare content management system
     // we need the handler for database access
@@ -136,56 +138,34 @@
             error => response.send(jsonfx.stringify(error.toString(), false))
         );
     });
-    // build document
-    var document_body = '';
-
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
             for (var i = 0, l = file.length; i < l; i++) {
                 addStaticFiles(file[i]);
             }
-        }
-        else if (typeof file === 'string' && file.length > 0) {
+        } else if (typeof file === 'string' && file.length > 0) {
             webServer.AddStaticFile(file);
         }
     }
     addStaticFiles(main_config.static_client_files);
     webServer.AddStaticFile(main_config.touch ? main_config.scrollbar_hmi : main_config.scrollbar_config);
-    // TODO only in config mode
-    webServer.AddStaticFile('./src/ContentEditor.js');
-    // add the final static file: our hmi main loader
-    webServer.AddStaticFile('./src/app/hmi_main.js');
 
-    webServer.setBody(document_body);
-
-    if (main_config.server.test_enabled) {
-        tasks.push(function (i_success, i_error) {
-            var performTests = require('./src/test/Test.js');
-            performTests(hmi, i_success, i_error);
-        });
-    }
-    tasks.push(function (i_success, i_error) {
+    tasks.push((onSuccess, onError) => {
         if (typeof main_config.server.cycle_millis === 'number' && main_config.server.cycle_millis > 0) {
-            setInterval(function () {
-                hmi_object.refresh(new Date());
-            }, main_config.server.cycle_millis);
-            i_success();
-        }
-        else {
-            i_error('Invalid cycle millis');
+            setInterval(() => hmi_object.refresh(new Date()), main_config.server.cycle_millis);
+            onSuccess();
+        } else {
+            onError('Invalid cycle millis');
         }
     });
     // finally ...
-    Executor.run(tasks, function () {
+    Executor.run(tasks, () => {
         Object.seal(hmi);
         // start server if required
         if (typeof main_config.server.web_server_port === 'number') {
-            webServer.listen(main_config.server.web_server_port, function () {
+            webServer.Listen(main_config.server.web_server_port, function () {
                 console.log('hmijs web server listening on port: ' + main_config.server.web_server_port);
             });
         }
-    }, function (i_exc) {
-        console.error(i_exc);
-    });
-
+    }, error => console.error(error));
 }());
