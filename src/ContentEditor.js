@@ -766,12 +766,9 @@
     // CROSS REFERENCES BROWSER
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_references = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, sel_data, selected = false, unstress = Executor.unstress(i_adapter.notifyError, function () {
-            i_adapter.notifyTimeout(sel_data);
-        }, DEFAULT_TIMEOUT);
-        ;
-        var text = {
+    function getReferences(hmi, adapter) {
+        let cms = hmi.cms, sel_data, selected = false, unstress = Executor.unstress(adapter.notifyError, () => adapter.notifyTimeout(sel_data), DEFAULT_TIMEOUT);
+        let text = {
             x: 0,
             y: 1,
             width: 4,
@@ -780,7 +777,7 @@
             type: 'textfield',
             readonly: true
         };
-        var tree = {
+        let tree = {
             x: 0,
             y: 2,
             width: 4,
@@ -788,62 +785,58 @@
             type: 'tree',
             rootURL: ContentManager.GET_CONTENT_TREE_NODES_URL,
             rootRequest: ContentManager.COMMAND_GET_REFERENCES_TO_TREE_NODES,
-            compareNodes: function (i_node1, i_node2) {
-                return cms.compare(i_node1.data.path, i_node2.data.path);
-            },
-            nodeActivated: function (i_node) {
-                var path = i_node.data.path;
+            compareNodes: (node1, node2) => cms.compare(node1.data.path, node2.data.path),
+            nodeActivated: node => {
+                let path = node.data.path;
                 text.hmi_value(path);
                 if (selected !== path) {
                     selected = path;
-                    i_adapter.keySelected(cms.analyzeID(path));
+                    adapter.keySelected(cms.analyzeID(path));
                 }
             },
-            nodeClicked: function (i_node) {
-                selected = i_node.data.path;
+            nodeClicked: node => {
+                selected = node.data.path;
                 text.hmi_value(selected);
-                i_adapter.keySelected(cms.analyzeID(selected));
+                adapter.keySelected(cms.analyzeID(selected));
             }
         };
-        var updateReferences = function (i_button) {
-            if (i_button) {
-                buttonRefTo.hmi_setSelected(buttonRefTo === i_button);
-                buttonRefFrom.hmi_setSelected(buttonRefFrom === i_button);
+        function updateReferences(button) {
+            if (button) {
+                buttonRefTo.hmi_setSelected(buttonRefTo === button);
+                buttonRefFrom.hmi_setSelected(buttonRefFrom === button);
             }
-            unstress(function (i_success, i_error) {
+            unstress((onSuccess, onError) => {
                 text.hmi_value(sel_data.id);
-                tree.hmi_setRootPath(sel_data.id, i_success, i_error);
+                tree.hmi_setRootPath(sel_data.id, onSuccess, onError);
             });
         };
-        var buttonRefTo = {
+        let buttonRefTo = {
             x: 1,
             y: 0,
             border: true,
             text: 'uses',
             selected: true,
-            clicked: function () {
+            clicked: () => {
                 tree.rootRequest = ContentManager.COMMAND_GET_REFERENCES_TO_TREE_NODES;
-                updateReferences(this);
+                updateReferences(buttonRefTo);
             }
         };
-        var buttonRefFrom = {
+        let buttonRefFrom = {
             x: 2,
             y: 0,
             border: true,
             text: 'users',
-            clicked: function () {
+            clicked: () => {
                 tree.rootRequest = ContentManager.COMMAND_GET_REFERENCES_FROM_TREE_NODES;
-                updateReferences(this);
+                updateReferences(buttonRefFrom);
             }
         };
-        var buttonEdit = {
+        let buttonEdit = {
             x: 3,
             y: 0,
             border: true,
             text: 'browse',
-            clicked: function () {
-                i_adapter.selectInNavigator(cms.analyzeID(text.hmi_value()));
-            }
+            clicked: () => adapter.selectInNavigator(cms.analyzeID(text.hmi_value()))
         };
         return {
             type: 'grid',
@@ -855,16 +848,14 @@
                 align: 'right',
                 text: 'cross references:'
             }, buttonRefTo, buttonRefFrom, buttonEdit, tree],
-            setRootIdData: function (i_data) {
-                sel_data = i_data;
+            setRootIdData: data => {
+                sel_data = data;
                 updateReferences();
             },
             update: updateReferences,
-            getIdData: function () {
-                return cms.analyzeID(text.hmi_value());
-            }
+            getIdData: () => cms.analyzeID(text.hmi_value())
         };
-    };
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // LABELS - PREVIEW & EDITOR
@@ -2306,7 +2297,7 @@
         var browser_tree = getBrowserTree(i_hmi, browser_tree_adapter);
         var search_container = getSearchContainer(i_hmi, search_container_adapter);
         var navigator = getNavigator(i_hmi, navigator_adapter, key_textfield, browser_tree, search_container);
-        var references = get_references(i_hmi, references_adapter);
+        var references = getReferences(i_hmi, references_adapter);
         var refactoring = get_refactoring(i_hmi, refactoring_adapter);
         var edit_ctrl = get_edit_controller(i_hmi, edit_ctrl_adapter);
         var preview = get_preview(i_hmi, preview_adapter);
