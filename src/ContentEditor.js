@@ -2152,9 +2152,9 @@
             updateInfo: log_handler.updateInfo,
             notifyError: log_handler.pushError,
             updateScrollParams: params => updateScrolls(scroll_positions, params),
-            reload: data => {
-                if (data) {
-                    key_textfield.update(data);
+            reload: d => {
+                if (d) {
+                    key_textfield.update(d);
                 }
                 let data = key_textfield.getIdData();
                 if (browser_tree.hmi_isVisible()) {
@@ -2253,6 +2253,18 @@
         log_handler.y = 0;
         log_handler.info.x = 1;
         log_handler.info.y = 0;
+        let time = {
+            x: 2,
+            y: 0,
+            refresh: date => {
+                // clock (updates every second)
+                var last = footer._last, sec = Math.ceil(date.getTime() / 1000);
+                if (last !== sec) {
+                    last = sec;
+                    time.hmi_text(date.toLocaleString());
+                }
+            }
+        };
         let footer = {
             x: 0,
             y: 2,
@@ -2261,18 +2273,7 @@
             rows: 1,
             separator: SEPARATOR,
             border: true,
-            children: [log_handler, log_handler.info, {
-                x: 2,
-                y: 0,
-                refresh: date => {
-                    // clock (updates every second)
-                    var last = footer._last, sec = Math.ceil(date.getTime() / 1000);
-                    if (last !== sec) {
-                        last = sec;
-                        footer.hmi_text(date.toLocaleString());
-                    }
-                }
-            }]
+            children: [log_handler, log_handler.info, time]
         };
         // CONTENT EDITOR
         navigator.location = 'top';
