@@ -1470,7 +1470,7 @@
             button_raw.hmi_setSelected(button_raw.selected);
             adapter.triggerReload();
         };
-        let edited = false, object, raw;
+        let edited = false, object, raw, sel_data;
         function reload(data, language, onSuccess, onError) {
             if (textarea.file) {
                 handleScrolls(scrolls, textarea.file, textarea, false);
@@ -1572,7 +1572,7 @@
             },
             showChildObjectEditor: (index, child) => {
                 if (!edited) {
-                    if (Array.isArray(raw.children)) {
+                    if (raw !== undefined && Array.isArray(raw.children)) {
                         let obj = raw.children[index] || {
                             x: child && typeof child.x === 'number' ? child.x : 0,
                             y: child && typeof child.y === 'number' ? child.y : 0,
@@ -1668,9 +1668,9 @@
                 case ContentManager.PARSE:
                     if ((object.type === 'grid' || object.type === 'float') && Array.isArray(raw.children) && Array.isArray(object.children)) {
                         // first we got to update our raw coordinates
-                        for (var i = 0, l = raw.children.length; i < l; i++) {
-                            var raw_child = raw.children[i];
-                            var obj_child = object.children[i];
+                        for (let i = 0, l = raw.children.length; i < l; i++) {
+                            let raw_child = raw.children[i];
+                            let obj_child = object.children[i];
                             if (typeof obj_child.x === 'number') {
                                 raw_child.x = obj_child.x;
                             }
@@ -1682,10 +1682,8 @@
                     } else {
                         throw new Error('Invalid hmi-edit-content');
                     }
-                    break;
                 default:
                     throw new Error('Invalid mode: "' + mode + '"');
-                    break;
             }
         };
         return {
@@ -1732,34 +1730,31 @@
     // MAIN - PREVIEW & EDITOR & CONTENT EDITOR
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_preview = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, unstress = Executor.unstress(i_adapter.notifyError, function () {
-            i_adapter.notifyTimeout(sel_data);
-        }, DEFAULT_TIMEOUT);
-        var preview = false, sel_data, language, reload = function () {
-            unstress(function (i_success, i_error) {
+    function getPreview(hmi, adapter) {
+        let cms = hmi.cms, unstress = Executor.unstress(adapter.notifyError, () => adapter.notifyTimeout(sel_data), DEFAULT_TIMEOUT);
+        let preview = false, sel_data, language;
+        function reload() {
+            unstress((onSuccess, onError) => {
                 var handler = sel_data.extension ? handlers[sel_data.extension] : false;
                 var next = handler ? handler.cont : false;
-                updateContainer(container, preview, next, sel_data, language, function () {
+                updateContainer(container, preview, next, sel_data, language, () => {
                     preview = next;
-                    i_success();
-                }, i_error);
+                    onSuccess();
+                }, onError);
             });
         };
-        i_adapter.triggerReload = reload;
-        var lab = getLabPreview(i_hmi, i_adapter);
-        var htm = getHtmPreview(i_hmi, i_adapter);
-        var txt = getTxtPreview(i_hmi, i_adapter);
-        var jso = getJsoPreview(i_hmi, i_adapter);
-        var handlers = {};
-        cms.getDescriptors(function (i_ext, i_desc) {
-            handlers[i_ext] = getHandler(i_desc, lab, htm, txt, jso);
-        });
-        var container = {
+        adapter.triggerReload = reload;
+        let lab = getLabPreview(hmi, adapter);
+        let htm = getHtmPreview(hmi, adapter);
+        let txt = getTxtPreview(hmi, adapter);
+        let jso = getJsoPreview(hmi, adapter);
+        let handlers = {};
+        cms.getDescriptors((ext, desc) => handlers[ext] = getHandler(desc, lab, htm, txt, jso));
+        let container = {
             type: 'container',
-            update: function (i_data, i_language) {
-                sel_data = i_data;
-                language = i_language;
+            update: (data, lang) => {
+                sel_data = data;
+                language = lang;
                 reload();
             },
             scrolls_txt_raw: txt.scrolls_raw,
@@ -1768,16 +1763,16 @@
             scrolls_jso_build: jso.scrolls_build
         };
         return container;
-    };
+    }
 
-    var get_refactoring = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, sel_data = false, mode = false, source = false, enabled = true;
-        var update = function () {
+    function getRefactoring(hmi, adapter) {
+        let cms = hmi.cms, sel_data = false, mode = false, source = false, enabled = true;
+        function update() {
             button_move.hmi_setEnabled(enabled && sel_data !== false && (sel_data.file !== undefined || sel_data.folder !== undefined));
             button_move.hmi_setSelected(enabled && source !== false && mode === ContentManager.MOVE);
             button_copy.hmi_setEnabled(enabled && sel_data !== false && (sel_data.file !== undefined || sel_data.folder !== undefined));
             button_copy.hmi_setSelected(enabled && source !== false && mode === ContentManager.COPY);
-            var paste_enabled = enabled && source !== false;
+            let paste_enabled = enabled && source !== false;
             if (source.extension && !sel_data.extension) {
                 paste_enabled = false;
             }
@@ -1792,7 +1787,7 @@
             button_export.hmi_setEnabled(enabled && sel_data !== false && (sel_data.file !== undefined || sel_data.folder !== undefined));
             button_import.hmi_setEnabled(enabled);
             if (mode !== undefined && source !== false) {
-                var info = mode;
+                let info = mode;
                 info += ': "';
                 info += source.id;
                 info += '" to: ';
@@ -1800,118 +1795,113 @@
                     info += '"';
                     info += sel_data.id;
                     info += '"';
-                }
-                else {
+                } else {
                     info += '?';
                 }
-                i_adapter.updateInfo(info);
+                adapter.updateInfo(info);
             }
         };
-        var button_move = {
+        let button_move = {
             x: 1,
             y: 0,
             text: 'move',
             border: true,
             enabled: false,
-            clicked: function () {
+            clicked: () => {
                 source = sel_data;
                 mode = ContentManager.MOVE;
                 update();
             }
         };
-        var button_copy = {
+        let button_copy = {
             x: 2,
             y: 0,
             text: 'copy',
             enabled: false,
             border: true,
-            clicked: function () {
+            clicked: () => {
                 source = sel_data;
                 mode = ContentManager.COPY;
                 update();
             }
         };
-        var button_paste = {
+        let button_paste = {
             x: 3,
             y: 0,
             text: 'paste',
             enabled: false,
             border: true,
-            clicked: function () {
-                performRefactoring(i_hmi, source.id, sel_data.id, mode, function (i_params) {
-                    var m = mode;
+            clicked: () => {
+                performRefactoring(hmi, source.id, sel_data.id, mode, params => {
+                    let m = mode;
                     mode = false;
                     source = false;
                     update();
-                    i_adapter.updateInfo('performed ' + m);
-                    i_adapter.updateScrollParams(i_params);
-                    i_adapter.reload(sel_data);
-                }, function (i_exception) {
+                    adapter.updateInfo('performed ' + m);
+                    adapter.updateScrollParams(params);
+                    adapter.reload(sel_data);
+                }, error => {
                     mode = false;
                     source = false;
                     update();
-                    i_adapter.notifyError(i_exception);
+                    adapter.notifyError(error);
                 });
             }
         };
-        var button_delete = {
+        let button_delete = {
             x: 4,
             y: 0,
             text: 'delete',
             enabled: false,
             border: true,
-            clicked: function () {
-                performRefactoring(i_hmi, sel_data.id, undefined, ContentManager.DELETE, function (i_params) {
+            clicked: () => {
+                performRefactoring(hmi, sel_data.id, undefined, ContentManager.DELETE, params => {
                     mode = false;
                     source = false;
                     update();
-                    i_adapter.updateInfo('performed remove');
-                    i_adapter.updateScrollParams(i_params);
-                    i_adapter.reload();
-                }, function (i_exception) {
+                    adapter.updateInfo('performed remove');
+                    adapter.updateScrollParams(params);
+                    adapter.reload();
+                }, error => {
                     mode = false;
                     source = false;
                     update();
-                    i_adapter.notifyError(i_exception);
+                    adapter.notifyError(error);
                 });
             }
         };
-        var button_export = {
+        let button_export = {
             x: 5,
             y: 0,
             text: 'export',
             enabled: false,
             border: true,
             timeout: 1000,
-            longClicked: function () {
-                var that = this, handler = cms.getExchangeHandler();
-                handler.handleExport(sel_data.id, function (i_state) {
-                    i_adapter.updateInfo(i_state !== undefined ? 'export ' + i_state : 'export ready');
-                }, i_adapter.notifyError);
+            longClicked: () => {
+                let handler = cms.getExchangeHandler();
+                handler.handleExport(sel_data.id, state => adapter.updateInfo(state !== undefined ? 'export ' + state : 'export ready'), adapter.notifyError);
             }
         };
-        var button_import = {
+        let button_import = {
             x: 6,
             y: 0,
             text: 'import',
             border: true,
-            clicked: function () {
-                var that = this;
-                Utilities.loadClientTextFile(function (i_text) {
+            clicked: () => {
+                Utilities.loadClientTextFile(text => {
                     var handler = cms.getExchangeHandler();
-                    handler.handleImport(i_hmi, i_text.replace(/\r?\n|\r/g, '\n'), function (i_state) {
-                        if (i_state === undefined) {
-                            i_adapter.updateInfo('import ' + i_state);
+                    handler.handleImport(hmi, text.replace(/\r?\n|\r/g, '\n'), state => {
+                        if (state === undefined) {
+                            adapter.updateInfo('import ' + state);
+                        } else {
+                            adapter.updateInfo('import ready');
+                            adapter.reload();
                         }
-                        else {
-                            i_adapter.updateInfo('import ready');
-                            i_adapter.reload();
-                        }
-                    }, i_adapter.notifyError);
+                    }, adapter.notifyError);
                 });
             }
         };
-        var container = {
+        let container = {
             type: 'grid',
             columns: [1, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH],
             rows: 1,
@@ -1922,20 +1912,20 @@
                 align: 'right',
                 text: 'refactoring:'
             }, button_move, button_copy, button_paste, button_delete, button_export, button_import],
-            update: function (i_data) {
-                sel_data = i_data;
+            update: data => {
+                sel_data = data;
                 update();
             },
-            setEnabled: function (i_enabled) {
-                enabled = i_enabled;
-                if (!i_enabled) {
+            setEnabled: en => {
+                enabled = en;
+                if (!en) {
                     source = false;
                 }
                 update();
             }
         };
         return container;
-    };
+    }
 
     var get_edit_controller = function (i_hmi, i_adapter) {
         var cms = i_hmi.cms, unstress = Executor.unstress(i_adapter.notifyError, function () {
@@ -2255,9 +2245,9 @@
         var search_container = getSearchContainer(i_hmi, search_container_adapter);
         var navigator = getNavigator(i_hmi, navigator_adapter, key_textfield, browser_tree, search_container);
         var references = getReferences(i_hmi, references_adapter);
-        var refactoring = get_refactoring(i_hmi, refactoring_adapter);
+        var refactoring = getRefactoring(i_hmi, refactoring_adapter);
         var edit_ctrl = get_edit_controller(i_hmi, edit_ctrl_adapter);
-        var preview = get_preview(i_hmi, preview_adapter);
+        var preview = getPreview(i_hmi, preview_adapter);
         // SCROLL POSITIONS
         scroll_positions.push(edit_ctrl.scrolls_htm);
         scroll_positions.push(edit_ctrl.scrolls_txt);
