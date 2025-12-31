@@ -86,7 +86,7 @@
             hmi.create(object, body, function () {
                 console.log('js hmi started');
             }, function (error) {
-                console.error(error):
+                console.error(error);
             });
             body.on('unload', function () {
                 if (clientHandler) {
