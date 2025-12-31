@@ -1,24 +1,24 @@
 (function () {
     "use strict";
     const {
-        // Client, // direct access: const Client = require('@markus.hardardt/js_utils/src/Client.js');
+        Client, // direct access: const Client = require('@markus.hardardt/js_utils/src/Client.js');
         Executor, // direct access: const Executor = require('@markus.hardardt/js_utils/src/Executor.js');
-        // HashLists, // direct access: const HashLists = require('@markus.hardardt/js_utils/src/HashLists.js');
+        HashLists, // direct access: const HashLists = require('@markus.hardardt/js_utils/src/HashLists.js');
         jsonfx, // direct access: const jsonfx = require('@markus.hardardt/js_utils/src/jsonfx.js');
         math, // direct access: const math = require('@markus.hardardt/js_utils/src/math.js');
-        // ObjectPositionSystem, // direct access: const ObjectPositionSystem = require('@markus.hardardt/js_utils/src/ObjectPositionSystem.js');
+        ObjectPositionSystem, // direct access: const ObjectPositionSystem = require('@markus.hardardt/js_utils/src/ObjectPositionSystem.js');
         Regex, // direct access: const Regex = require('@markus.hardardt/js_utils/src/Regex.js');
-        // Server, // direct access: const Server = require('@markus.hardardt/js_utils/src/Server.js');
-        // Sorting, // direct access: const Sorting = require('@markus.hardardt/js_utils/src/Sorting.js');
+        Server, // direct access: const Server = require('@markus.hardardt/js_utils/src/Server.js');
+        Sorting, // direct access: const Sorting = require('@markus.hardardt/js_utils/src/Sorting.js');
         SqlHelper, // direct access: const SqlHelper = require('@markus.hardardt/js_utils/src/SqlHelper.js');
-        // Utilities, // direct access: const Utilities = require('@markus.hardardt/js_utils/src/Utilities.js');
+        Utilities, // direct access: const Utilities = require('@markus.hardardt/js_utils/src/Utilities.js');
         Core, // direct access: const Core = require('@markus.hardardt/js_utils/src/Core.js');
         WebServer, // direct access: const WebServer = require('@markus.hardardt/js_utils/src/WebServer.js');
-        // ContentManager, // direct access: const ContentManager = require('@markus.hardardt/js_utils/src/ContentManager.js');
-        // Common, // direct access: const Common = require('@markus.hardardt/js_utils/src/Common.js');
-        hmi_object, // direct access: const hmi_object = require('@markus.hardardt/js_utils/src/hmi_object.js');
+        ContentManager, // direct access: const ContentManager = require('@markus.hardardt/js_utils/src/ContentManager.js');
+        Common, // direct access: const Common = require('@markus.hardardt/js_utils/src/Common.js');
+        ObjectLifecycleManager, // direct access: const ObjectLifecycleManager = require('@markus.hardardt/js_utils/src/ObjectLifecycleManager.js');
         DataPoint, // direct access: const DataPoint = require('@markus.hardardt/js_utils/src/DataPoint.js');
-        // TargetSystem, // direct access: const TargetSystem = require('@markus.hardardt/js_utils/src/TargetSystem.js');
+        TargetSystem, // direct access: const TargetSystem = require('@markus.hardardt/js_utils/src/TargetSystem.js');
         WebSocketConnection, // direct access: const WebSocketConnection = require('@markus.hardardt/js_utils/src/WebSocketConnection.js');
         DataConnector, // direct access: const DataConnector = require('@markus.hardardt/js_utils/src/DataConnector.js');
         addStaticWebServerJsUtilsFiles
