@@ -555,70 +555,62 @@
     // BROWSER TREE
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_browser_tree = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, sel_data, selected = false, unstress = Executor.unstress(i_adapter.notifyError, function () {
-            i_adapter.notifyTimeout(sel_data);
-        }, DEFAULT_TIMEOUT);
-        return {
+    function getBrowserTree(hmi, adapter) {
+        let cms = hmi.cms, sel_data, selected = false, unstress = Executor.unstress(adapter.notifyError, () => adapter.notifyTimeout(sel_data), DEFAULT_TIMEOUT);
+        const tree = {
             x: 0,
             y: 2,
             type: 'tree',
             rootURL: ContentManager.GET_CONTENT_TREE_NODES_URL,
             rootRequest: ContentManager.COMMAND_GET_CHILD_TREE_NODES,
-            compareNodes: function (i_node1, i_node2) {
-                return cms.compare(i_node1.data.path, i_node2.data.path);
-            },
-            nodeActivated: function (i_node) {
-                var path = i_node.data.path;
+            compareNodes: (node1, node2) => cms.compare(node1.data.path, node2.data.path),
+            nodeActivated: node => {
+                let path = node.data.path;
                 if (selected !== path) {
                     selected = path;
-                    i_adapter.keySelected(cms.analyzeID(path));
+                    adapter.keySelected(cms.analyzeID(path));
                 }
             },
-            nodeClicked: function (i_node) {
-                selected = i_node.data.path;
-                i_adapter.keySelected(cms.analyzeID(selected));
+            nodeClicked: node => {
+                selected = node.data.path;
+                adapter.keySelected(cms.analyzeID(selected));
             },
-            expand: function (i_data) {
-                var that = this;
-                unstress(function (i_success, i_error) {
-                    sel_data = i_data;
-                    that.hmi_setActivePath(i_data.id, function (i_node) {
-                        that.hmi_updateLoadedNodes(i_success, i_error);
-                    }, i_error);
+            expand: data => {
+                unstress((onSuccess, onError) => {
+                    sel_data = data;
+                    tree.hmi_setActivePath(data.id, node => tree.hmi_updateLoadedNodes(onSuccess, onError), onError);
                 });
             }
         };
-    };
+        return tree;
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // SEARCH CONTAINER
     // ///////////////////////////////////////////////////////////////////////////////////////////////
-    var get_search_container = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, search_running = false, perform_search = function () {
-            var key = search_key_textfield.hmi_value().trim();
-            var value = search_value_textfield.hmi_value().trim();
+    function getSearchContainer(hmi, adapter) {
+        let cms = hmi.cms, search_running = false, perform_search = () => {
+            let key = search_key_textfield.hmi_value().trim();
+            let value = search_value_textfield.hmi_value().trim();
             if (key.length > 0 || value.length > 0) {
                 search_running = true;
                 button_search.hmi_setEnabled(false);
-                cms.getSearchResults(key, value, function (i_results) {
+                cms.getSearchResults(key, value, results => {
                     search_running = false;
                     button_search.hmi_setEnabled(true);
                     search_results.splice(0, search_results.length);
-                    for (var i = 0, l = i_results.length; i < l; i++) {
-                        var id = i_results[i], icon = cms.getIcon(id);
+                    for (let i = 0, l = results.length; i < l; i++) {
+                        let id = results[i], icon = cms.getIcon(id);
                         search_results.push({
                             id: id,
                             icon: icon
                         });
                     }
                     search_table.hmi_reload();
-                }, function (i_exception) {
-                    i_adapter.notifyError(i_exception);
-                });
+                }, error => adapter.notifyError(error));
             }
-        }, trigger_search = function (i_event) {
-            if (i_event.which === 13 && !search_running) {
+        }, trigger_search = event => {
+            if (event.which === 13 && !search_running) {
                 perform_search();
             }
         }, search_key_textfield = {
@@ -626,33 +618,33 @@
             y: 0,
             type: 'textfield',
             border: false,
-            prepare: function (that, i_success, i_error) {
-                this.hmi_getTextField().on('keyup', trigger_search);
-                i_success();
+            prepare: (that, onSuccess, onError) => {
+                that.hmi_getTextField().on('keyup', trigger_search);
+                onSuccess();
             },
-            destroy: function (that, i_success, i_error) {
-                this.hmi_getTextField().off('keyup', trigger_search);
-                i_success();
+            destroy: (that, onSuccess, onError) => {
+                that.hmi_getTextField().off('keyup', trigger_search);
+                onSuccess();
             }
         }, search_value_textfield = {
             x: 3,
             y: 0,
             type: 'textfield',
             border: false,
-            prepare: function (that, i_success, i_error) {
-                this.hmi_getTextField().on('keyup', trigger_search);
-                i_success();
+            prepare: (that, onSuccess, onError) => {
+                that.hmi_getTextField().on('keyup', trigger_search);
+                onSuccess();
             },
-            destroy: function (that, i_success, i_error) {
-                this.hmi_getTextField().off('keyup', trigger_search);
-                i_success();
+            destroy: (that, onSuccess, onError) => {
+                that.hmi_getTextField().off('keyup', trigger_search);
+                onSuccess();
             }
         }, button_search = {
             x: 4,
             y: 0,
             text: 'search',
             border: true,
-            clicked: function () {
+            clicked: () => {
                 if (!search_running) {
                     perform_search();
                 }
@@ -674,14 +666,12 @@
                 width: 10,
                 text: 'type'
             }],
-            getRowCount: function () {
-                return search_results.length;
-            },
-            getCellHtml: function (i_row, i_column) {
-                var result = search_results[i_row];
-                switch (i_column) {
+            getRowCount: () => search_results.length,
+            getCellHtml: (row, column) => {
+                let result = search_results[row];
+                switch (column) {
                     case 0:
-                        var id = result.id;
+                        let id = result.id;
                         return id.length < 80 ? id : id.substr(0, 35) + ' ... ' + id.substr(id.length - 45, id.length);
                     case 1:
                         return '<img src="' + result.icon + '" />';
@@ -689,9 +679,7 @@
                         return '';
                 }
             },
-            handleTableRowClicked: function (i_row) {
-                i_adapter.keySelected(cms.analyzeID(search_results[i_row].id));
-            }
+            handleTableRowClicked: row => adapter.keySelected(cms.analyzeID(search_results[row].id))
         };
         return {
             visible: false,
@@ -713,7 +701,7 @@
                 align: 'right'
             }, search_value_textfield, button_search, search_table]
         };
-    };
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // MAIN NAIGATION BROWSER
@@ -2323,8 +2311,8 @@
         // CONTROLS
         var language_selector = getLanguageSelector(i_hmi, language_selector_adapter);
         var key_textfield = getKeyTextfield(i_hmi, key_textfield_adapter);
-        var browser_tree = get_browser_tree(i_hmi, browser_tree_adapter);
-        var search_container = get_search_container(i_hmi, search_container_adapter);
+        var browser_tree = getBrowserTree(i_hmi, browser_tree_adapter);
+        var search_container = getSearchContainer(i_hmi, search_container_adapter);
         var navigator = get_navigator(i_hmi, navigator_adapter, key_textfield, browser_tree, search_container);
         var references = get_references(i_hmi, references_adapter);
         var refactoring = get_refactoring(i_hmi, refactoring_adapter);
