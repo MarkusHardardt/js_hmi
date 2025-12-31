@@ -324,7 +324,9 @@
                 text: lang,
                 border: true,
                 selected: i === 0,
-                clicked: () => select_language(this) // TODO: WHat is 'this'?
+                clicked: function () { // Note: Do not change to lambda function becaus 'this' will not be the button anymore!
+                    select_language(this);
+                }
             });
             columns.push(DEFAULT_COLUMN_WIDTH);
         }
@@ -400,7 +402,7 @@
                         }
                     },
                     prepare: (that, onSuccess, onError) => {
-                        this.hmi_reload();
+                        table.hmi_reload();
                         onSuccess();
                     },
                     handleTableRowClicked: (row) => {
@@ -509,55 +511,45 @@
     // KEY TEXTFIELD
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_key_textfield = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms;
-        return {
+    function getKeyTextfield(hmi, adapter) {
+        const cms = hmi.cms;
+        const keyTextField = {
             x: 0,
             y: 0,
             type: 'textfield',
             border: false,
-            prepare: function (that, i_success, i_error) {
-                var that = this;
-                this._keyup = function (i_event) {
-                    if (i_event.which === 13) {
+            prepare: (that, onSuccess, onError) => {
+                that._keyup = event => {
+                    if (event.which === 13) {
                         var path = that.hmi_value().trim();
-                        if (path.length === 0) {
-                            // TODO: get from global roots-object and depending on initial
-                            // url
-                            //path = '$demo/maze/game.j';
-                            path = '$test/beckhoff_ads/symbols_tree.j';
-                        }
-                        i_adapter.keySelected(cms.analyzeID(path));
+                        adapter.keySelected(cms.analyzeID(path));
                     }
                 };
-                this.hmi_getTextField().on('keyup', this._keyup);
-                this._on_change = function () {
+                that.hmi_getTextField().on('keyup', that._keyup);
+                that._on_change = () => {
                     var data = cms.analyzeID(that.hmi_value().trim());
                     that._update_color(data);
-                    i_adapter.keyEdited(data);
+                    adapter.keyEdited(data);
                 };
-                this.hmi_addChangeListener(this._on_change);
-                i_success();
+                that.hmi_addChangeListener(that._on_change);
+                onSuccess();
             },
-            destroy: function (that, i_success, i_error) {
-                this.hmi_getTextField().off('keyup', this._keyup);
-                delete this._keyup;
-                this.hmi_removeChangeListener(this._on_change);
-                delete this._on_change;
-                i_success();
+            destroy: (that, onSuccess, onError) => {
+                that.hmi_getTextField().off('keyup', that._keyup);
+                delete that._keyup;
+                that.hmi_removeChangeListener(that._on_change);
+                delete that._on_change;
+                onSuccess();
             },
-            _update_color: function (i_data) {
-                this.hmi_getTextField().css('color', i_data.file || i_data.folder ? VALID_COLOR : ALARM_COLOR);
+            _update_color: data => keyTextField.hmi_getTextField().css('color', data.file || data.folder ? VALID_COLOR : ALARM_COLOR),
+            update: data => {
+                keyTextField.hmi_value(data.id);
+                keyTextField._update_color(data);
             },
-            update: function (i_data) {
-                this.hmi_value(i_data.id);
-                this._update_color(i_data);
-            },
-            getIdData: function () {
-                return cms.analyzeID(this.hmi_value().trim());
-            }
+            getIdData: () => cms.analyzeID(keyTextField.hmi_value().trim())
         };
-    };
+        return keyTextField;
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // BROWSER TREE
@@ -2330,7 +2322,7 @@
         };
         // CONTROLS
         var language_selector = getLanguageSelector(i_hmi, language_selector_adapter);
-        var key_textfield = get_key_textfield(i_hmi, key_textfield_adapter);
+        var key_textfield = getKeyTextfield(i_hmi, key_textfield_adapter);
         var browser_tree = get_browser_tree(i_hmi, browser_tree_adapter);
         var search_container = get_search_container(i_hmi, search_container_adapter);
         var navigator = get_navigator(i_hmi, navigator_adapter, key_textfield, browser_tree, search_container);
