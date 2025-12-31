@@ -158,12 +158,12 @@
                         }
                     } else if (params.action === 'delete') {
                         if (Array.isArray(params.externalUsers) && params.externalUsers.length > 0) {
-                            var txt = '<b>';
+                            let txt = '<b>';
                             txt += 'Object is referenced!';
                             txt += '</b><br><b>';
                             txt += 'Sure to proceed?';
                             txt += '</b><br><code>';
-                            for (var i = 0; i < params.externalUsers.length; i++) {
+                            for (let i = 0; i < params.externalUsers.length; i++) {
                                 if (i > 10) {
                                     txt += '<br>...';
                                     break;
@@ -188,7 +188,7 @@
                         // if the id has changed
                         cms.exists(id, exists => {
                             if (exists !== false) {
-                                var txt = '<b>';
+                                let txt = '<b>';
                                 txt += 'Identificator already exists!';
                                 txt += '</b><br><code>';
                                 txt += id;
@@ -230,12 +230,12 @@
                     closed: () => onSuccess(false)
                 });
             } else if (params.action === ContentManager.DELETE) {
-                var txt = '';
+                let txt = '';
                 if (params.externalUsers !== undefined && Array.isArray(params.externalUsers) && params.externalUsers.length > 0) {
                     txt += '<b>';
                     txt += 'Object is referenced!';
                     txt += '</b><br><code>';
-                    for (var i = 0; i < params.externalUsers.length; i++) {
+                    for (let i = 0; i < params.externalUsers.length; i++) {
                         if (i > 10) {
                             txt += '<br>...';
                             break;
@@ -265,10 +265,10 @@
                 });
             } else if (params.action === ContentManager.MOVE || params.action === ContentManager.COPY) {
                 if (params.existingTargets !== undefined && Array.isArray(params.existingTargets) && params.existingTargets.length > 0) {
-                    var txt = '<b>';
+                    let txt = '<b>';
                     txt += 'Object already exists!';
                     txt += '</b><br><code>';
-                    for (var i = 0; i < params.existingTargets.length; i++) {
+                    for (let i = 0; i < params.existingTargets.length; i++) {
                         if (i > 10) {
                             txt += '<br>...';
                             break;
@@ -296,37 +296,35 @@
                 onSuccess(false);
             }
         }, onEerror);
-    };
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // LANGUAGES
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_language_selector = function (i_hmi, i_adapter) {
-        var langs = i_hmi.cms.getLanguages(), language = langs[0], children = [{
+    function getLanguageSelector(hmi, adapter) {
+        let langs = hmi.cms.getLanguages(), language = langs[0], children = [{
             x: 0,
             y: 0,
             align: 'right',
             text: 'languages:'
-        }], columns = [1], select_language = function (i_button) {
-            for (var i = 0, l = children.length; i < l; i++) {
-                var button = children[i];
-                button.hmi_setSelected(button === i_button);
+        }], columns = [1], select_language = btn => {
+            for (let i = 0, l = children.length; i < l; i++) {
+                let button = children[i];
+                button.hmi_setSelected(button === btn);
             }
-            language = i_button.text;
-            i_adapter.languageChanged(language);
+            language = btn.text;
+            adapter.languageChanged(language);
         };
-        for (var i = 0, l = langs.length; i < l; i++) {
-            var lang = langs[i];
+        for (let i = 0, l = langs.length; i < l; i++) {
+            let lang = langs[i];
             children.push({
                 x: i + 1,
                 y: 0,
                 text: lang,
                 border: true,
                 selected: i === 0,
-                clicked: function () {
-                    select_language(this);
-                }
+                clicked: () => select_language(this) // TODO: WHat is 'this'?
             });
             columns.push(DEFAULT_COLUMN_WIDTH);
         }
@@ -336,32 +334,24 @@
             rows: 1,
             separator: SEPARATOR,
             children: children,
-            getLanguage: function () {
-                return language;
-            }
+            getLanguage: () => language
         };
-    };
+    }
 
-    var compare_errors = function (i_error1, i_error2) {
-        var time1 = i_error1.date.getTime();
-        var time2 = i_error2.date.getTime();
-        var res = time2 - time1;
-        if (res !== 0) {
-            return res;
-        }
-        else {
-            return Sorting.compareTextsAndNumbers(i_error1.text, i_error12.text, false, false);
-        }
-    };
+    function compareErrors(error1, error2) {
+        let time1 = error1.date.getTime();
+        let time2 = error2.date.getTime();
+        return time2 !== time1 ? time2 - time1 : Sorting.compareTextsAndNumbers(error1.text, i_error12.text, false, false);
+    }
 
-    var get_log_handler = function (i_hmi) {
-        var errors = [], last_read_offset = 0, push = function (i_entry) {
-            var idx = Sorting.getInsertionIndex(i_entry, errors, false, compare_errors);
-            errors.splice(idx, 0, i_entry);
+    function getLogHandler(hmi) {
+        let errors = [], last_read_offset = 0, push = entry => {
+            let idx = Sorting.getInsertionIndex(entry, errors, false, compareErrors);
+            errors.splice(idx, 0, entry);
             last_read_offset++;
             update();
-        }, update = function () {
-            var active = last_read_offset > 0;
+        }, update = () => {
+            let active = last_read_offset > 0;
             // button[active ? 'hmi_removeClass' :
             // 'hmi_addClass']('highlighted-green');
             button[active ? 'hmi_addClass' : 'hmi_removeClass']('highlighted-red');
@@ -369,7 +359,7 @@
             button.hmi_css('color', active ? 'white' : 'black');
             // container.hmi_setEnabled(active);
             if (active) {
-                var txt = errors[0].text;
+                let txt = errors[0].text;
                 if (errors.length > 1) {
                     txt += ' (' + (errors.length - 1) + ' more errors)';
                 }
@@ -381,8 +371,8 @@
         }, button = {
             text: 'info',
             border: true,
-            clicked: function () {
-                var table = {
+            clicked: () => {
+                let table = {
                     location: 'top',
                     type: 'table',
                     highlightSelectedRow: true,
@@ -397,12 +387,10 @@
                         text: 'error',
                         textsAndNumbers: true
                     }],
-                    getRowCount: function () {
-                        return errors.length;
-                    },
-                    getCellHtml: function (i_row, i_column) {
-                        var error = errors[i_row];
-                        switch (i_column) {
+                    getRowCount: () => errors.length,
+                    getCellHtml: (row, column) => {
+                        let error = errors[row];
+                        switch (column) {
                             case 0:
                                 return Utilities.formatTimestamp(error.date);
                             case 1:
@@ -411,68 +399,68 @@
                                 return '';
                         }
                     },
-                    prepare: function (that, i_success, i_error) {
+                    prepare: (that, onSuccess, onError) => {
                         this.hmi_reload();
-                        i_success();
+                        onSuccess();
                     },
-                    handleTableRowClicked: function (i_row) {
-                        var error = errors[i_row];
+                    handleTableRowClicked: (row) => {
+                        let error = errors[row];
                         textarea.hmi_value(Utilities.formatTimestamp(error.date) + '\n' + error.text);
                     }
                 };
-                var textarea = {
+                let textarea = {
                     location: 'bottom',
                     type: 'textarea',
                     editable: false
                 };
-                var popup_object = {
+                let popup_object = {
                     type: 'split',
                     topSize: math.GOLDEN_CUT_INVERTED,
                     columns: 1,
                     rows: [3, 1],
                     children: [table, textarea]
                 };
-                var buttons = [];
+                let buttons = [];
                 if (errors.length > 0) {
                     buttons.push({
                         text: 'clear all',
-                        click: function (i_close) {
+                        click: onClose => {
                             errors.splice(0, errors.length);
                             last_read_offset = 0;
                             info.hmi_value('');
                             update();
-                            i_close();
+                            onClose();
                         }
                     });
                 }
                 if (last_read_offset > 0) {
                     buttons.push({
                         text: 'reset',
-                        click: function (i_close) {
+                        click: onClose => {
                             last_read_offset = 0;
                             info.hmi_value('');
                             update();
-                            i_close();
+                            onClose();
                         }
                     });
                     buttons.push({
                         text: 'cancel',
-                        click: function (i_close) {
+                        click: onClose => {
                             update();
-                            i_close();
+                            onClose();
                         }
                     });
                 }
                 else {
                     buttons.push({
                         text: 'ok',
-                        click: function (i_close) {
+                        click: onClose => {
                             update();
-                            i_close();
+                            onClose();
                         }
                     });
                 }
-                i_hmi.showPopup({
+                hmi.showPopup({
                     title: 'errors',
                     width: Math.floor($(window).width() * 0.9),
                     height: Math.floor($(window).height() * 0.95),
@@ -480,42 +468,42 @@
                     buttons: buttons
                 });
             },
-            pushError: function (i_exception) {
+            pushError: error => {
                 push({
                     date: new Date(),
-                    data: i_exception,
-                    text: typeof i_exception === 'string' ? i_exception : (i_exception ? i_exception.toString() : 'unknown'),
+                    data: error,
+                    text: typeof error === 'string' ? error : (error ? error.toString() : 'unknown'),
                     timeout: false
                 });
-                console.error(i_exception);
+                console.error(error);
             },
-            pushTimeout: function (i_message) {
+            pushTimeout: message => {
                 push({
                     date: new Date(),
-                    data: i_message,
-                    text: typeof i_message === 'string' ? i_message : (i_message ? i_message.toString() : 'unknown'),
+                    data: message,
+                    text: typeof message === 'string' ? message : (message ? message.toString() : 'unknown'),
                     timeout: true
                 });
-                console.error(i_message);
+                console.error(message);
             },
-            prepare: function (that, i_success, i_error) {
+            prepare: (that, onSuccess, onError) => {
                 update();
-                i_success();
+                onSuccess();
             },
-            reset: function () {
+            reset: () => {
                 last_read_offset = 0;
                 info.hmi_value('');
                 update();
             },
-            updateInfo: function (i_info) {
+            updateInfo: info => {
                 if (last_read_offset === 0) {
-                    info.hmi_value(i_info);
+                    info.hmi_value(info);
                 }
             }
         };
         button.info = info;
         return button;
-    };
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // KEY TEXTFIELD
@@ -2194,7 +2182,7 @@
         // so it it easy to switch between objects and stay where you are.
         var scroll_positions = [];
         // We show messages and show and collect error messages.
-        var log_handler = get_log_handler(i_hmi);
+        var log_handler = getLogHandler(i_hmi);
         // All editor controls are encapsulated and do not have any knowledge about
         // any other control.
         // The signals between the controls are handled by the following adapters
@@ -2341,7 +2329,7 @@
             }
         };
         // CONTROLS
-        var language_selector = get_language_selector(i_hmi, language_selector_adapter);
+        var language_selector = getLanguageSelector(i_hmi, language_selector_adapter);
         var key_textfield = get_key_textfield(i_hmi, key_textfield_adapter);
         var browser_tree = get_browser_tree(i_hmi, browser_tree_adapter);
         var search_container = get_search_container(i_hmi, search_container_adapter);
