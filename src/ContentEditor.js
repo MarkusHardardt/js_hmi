@@ -332,10 +332,10 @@
         }
         return {
             type: 'grid',
-            columns: columns,
+            columns,
             rows: 1,
             separator: SEPARATOR,
-            children: children,
+            children,
             getLanguage: () => language
         };
     }
@@ -467,7 +467,7 @@
                     width: Math.floor($(window).width() * 0.9),
                     height: Math.floor($(window).height() * 0.95),
                     object: popup_object,
-                    buttons: buttons
+                    buttons
                 });
             },
             pushError: error => {
@@ -914,8 +914,8 @@
         return {
             type: 'grid',
             columns: [DEFAULT_COLUMN_WIDTH, 1],
-            rows: rows,
-            children: children,
+            rows,
+            children,
             keyChanged: (data, language, onSuccess, onError) => reload(data, language, onSuccess, onError)
         };
     }
@@ -979,22 +979,21 @@
             rows.push(DEFAULT_ROW_HEIGHT);
         }
         rows.push(1);
-        function get_value() {
-            let value = {};
-            for (let lang in values) {
-                if (values.hasOwnProperty(lang)) {
-                    value[lang] = values[lang].hmi_value().trim();
-                }
-            }
-            return value;
-        };
         return {
             type: 'grid',
             columns: [DEFAULT_COLUMN_WIDTH, 1],
-            rows: rows,
-            children: children,
+            rows,
+            children,
             keyChanged: reload,
-            getValue: get_value
+            getValue: () => {
+                let value = {};
+                for (let lang in values) {
+                    if (values.hasOwnProperty(lang)) {
+                        value[lang] = values[lang].hmi_value().trim();
+                    }
+                }
+                return value;
+            }
         };
     }
 
@@ -1002,44 +1001,44 @@
     // HTML - PREVIEW & EDITOR
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_htm_preview = function (i_hmi, i_adapter) {
-        var mode = ContentManager.RAW, update_mode = function (i_mode) {
-            mode = i_mode;
-            button_include.selected = i_mode === ContentManager.INCLUDE;
+    function getHtmPreview(hmi, adapter) {
+        let mode = ContentManager.RAW;
+        function update_mode(md) {
+            mode = md;
+            button_include.selected = md === ContentManager.INCLUDE;
             button_include.hmi_setSelected(button_include.selected);
-            button_raw.selected = i_mode === ContentManager.RAW;
+            button_raw.selected = md === ContentManager.RAW;
             button_raw.hmi_setSelected(button_raw.selected);
-            i_adapter.triggerReload();
+            adapter.triggerReload();
         };
-        var reload = function (i_data, i_language, i_success, i_error) {
-            if (i_data && i_data.file) {
+        function reload(data, language, onSuccess, onError) {
+            if (data && data.file) {
                 switch (mode) {
                     case ContentManager.RAW:
-                        i_hmi.cms.getObject(i_data.file, i_language, ContentManager.RAW, function (i_raw) {
-                            preview.hmi_html(i_raw !== undefined ? i_raw : '');
-                            i_success();
-                        }, function (i_exception) {
+                        hmi.cms.getObject(data.file, language, ContentManager.RAW, raw => {
+                            preview.hmi_html(raw !== undefined ? raw : '');
+                            onSuccess();
+                        }, error => {
                             preview.hmi_html('');
-                            i_error(i_exception);
+                            onError(error);
                         });
                         break;
                     case ContentManager.INCLUDE:
-                        i_hmi.cms.getObject(i_data.file, i_language, ContentManager.INCLUDE, function (i_build) {
-                            preview.hmi_html(i_build !== undefined ? i_build : '');
-                            i_success();
-                        }, function (i_exception) {
+                        hmi.cms.getObject(data.file, language, ContentManager.INCLUDE, build => {
+                            preview.hmi_html(build !== undefined ? build : '');
+                            onSuccess();
+                        }, error => {
                             preview.hmi_html('');
-                            i_error(i_exception);
+                            onError(error);
                         });
                         break;
                 }
-            }
-            else {
+            } else {
                 preview.hmi_html('');
-                i_success();
+                onSuccess();
             }
         };
-        var preview = {
+        let preview = {
             x: 0,
             y: 0,
             width: 3,
@@ -1047,76 +1046,71 @@
             border: false,
             scrollable: true
         };
-        var info_lang = {
+        let info_lang = {
             x: 0,
             y: 1,
             align: 'left'
         };
-        var button_include = {
+        let button_include = {
             x: 1,
             y: 1,
             text: 'include',
             border: true,
-            clicked: function () {
-                update_mode(ContentManager.INCLUDE);
-            }
+            clicked: () => update_mode(ContentManager.INCLUDE)
         };
-        var button_raw = {
+        let button_raw = {
             x: 2,
             y: 1,
             text: 'raw',
             border: true,
             selected: true,
-            clicked: function () {
-                update_mode(ContentManager.RAW);
-            }
+            clicked: () => update_mode(ContentManager.RAW)
         };
         return {
             type: 'grid',
             columns: [1, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH],
             rows: [1, DEFAULT_ROW_HEIGHT],
             children: [preview, info_lang, button_include, button_raw],
-            keyChanged: function (i_data, i_language, i_success, i_error) {
-                info_lang.hmi_text('language: "' + i_language + '"');
+            keyChanged: (data, language, onSuccess, onError) => {
+                info_lang.hmi_text('language: "' + language + '"');
                 button_include.hmi_setEnabled(false);
                 button_raw.hmi_setEnabled(false);
-                reload(i_data, i_language, function () {
+                reload(data, language, () => {
                     button_include.hmi_setEnabled(true);
                     button_raw.hmi_setEnabled(true);
-                    i_success();
-                }, function (i_exception) {
+                    onSuccess();
+                }, error => {
                     button_include.hmi_setEnabled(true);
                     button_raw.hmi_setEnabled(true);
-                    i_error(i_exception);
+                    onError(error);
                 });
             }
         };
-    };
+    }
 
-    var get_htm_editor = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, scrolls = {};
-        var reload = function (i_data, i_language, i_success, i_error) {
-            info_lang.hmi_text('language: "' + i_language + '"');
+    function getHtmEditor(hmi, adapter) {
+        let cms = hmi.cms, scrolls = {};
+        function reload(data, language, onSuccess, onError) {
+            info_lang.hmi_text('language: "' + language + '"');
             if (textarea.file) {
                 handleScrolls(scrolls, textarea.file, textarea, false);
                 delete textarea.file;
             }
-            if (i_data && i_data.file) {
-                cms.getObject(i_data.file, i_language, ContentManager.RAW, function (i_raw) {
-                    textarea.hmi_value(i_raw !== undefined ? i_raw : '');
-                    if (i_raw !== undefined) {
-                        textarea.file = i_data.file;
+            if (data && data.file) {
+                cms.getObject(data.file, language, ContentManager.RAW, raw => {
+                    textarea.hmi_value(raw !== undefined ? raw : '');
+                    if (raw !== undefined) {
+                        textarea.file = data.file;
                         handleScrolls(scrolls, textarea.file, textarea, true);
                     }
-                    i_success();
-                }, function (i_exception) {
+                    onSuccess();
+                }, error => {
                     textarea.hmi_html('');
-                    i_error(i_exception);
+                    onError(error);
                 });
-            }
-            else {
+            } else {
                 textarea.hmi_value('');
-                i_success();
+                onSuccess();
             }
         };
         var textarea = {
@@ -1126,13 +1120,13 @@
             code: 'html',
             editable: true,
             beautify: true,
-            prepare: function (that, i_success, i_error) {
-                this.hmi_addChangeListener(i_adapter.edited);
-                i_success();
+            prepare: (that, onSuccess, onError) => {
+                that.hmi_addChangeListener(adapter.edited);
+                onSuccess();
             },
-            destroy: function (that, i_success, i_error) {
-                this.hmi_removeChangeListener(i_adapter.edited);
-                i_success();
+            destroy: (that, onSuccess, onError) => {
+                that.hmi_removeChangeListener(adapter.edited);
+                onSuccess();
             }
         };
         var info_lang = {
@@ -1140,16 +1134,13 @@
             y: 1,
             align: 'left'
         };
-        var get_value = function () {
-            return textarea.hmi_value().trim();
-        };
         return {
             type: 'grid',
             columns: 1,
             rows: [1, DEFAULT_ROW_HEIGHT],
             children: [textarea, info_lang],
             keyChanged: reload,
-            getValue: get_value,
+            getValue: () => textarea.hmi_value().trim(),
             scrolls: scrolls
         };
     };
@@ -1158,16 +1149,17 @@
     // TEXT - PREVIEW & EDITOR
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_txt_preview = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, mode = ContentManager.RAW, scrolls_raw = {}, scrolls_build = {}, update_mode = function (i_mode) {
-            mode = i_mode;
-            button_include.selected = i_mode === ContentManager.INCLUDE;
+    function getTxtPreview(hmi, adapter) {
+        let cms = hmi.cms, mode = ContentManager.RAW, scrolls_raw = {}, scrolls_build = {};
+        function update_mode(md) {
+            mode = md;
+            button_include.selected = md === ContentManager.INCLUDE;
             button_include.hmi_setSelected(button_include.selected);
-            button_raw.selected = i_mode === ContentManager.RAW;
+            button_raw.selected = md === ContentManager.RAW;
             button_raw.hmi_setSelected(button_raw.selected);
-            i_adapter.triggerReload();
+            adapter.triggerReload();
         };
-        var reload = function (i_data, i_language, i_success, i_error) {
+        function reload(data, language, onSuccess, onError) {
             if (textarea.file_raw) {
                 handleScrolls(scrolls_raw, textarea.file_raw, textarea, false);
                 delete textarea.file_raw;
@@ -1176,42 +1168,41 @@
                 handleScrolls(scrolls_build, textarea.file_build, textarea, false);
                 delete textarea.file_build;
             }
-            if (i_data && i_data.file) {
+            if (data && data.file) {
                 switch (mode) {
                     case ContentManager.RAW:
-                        cms.getObject(i_data.file, i_language, ContentManager.RAW, function (i_raw) {
-                            textarea.hmi_value(i_raw !== undefined ? i_raw : '');
-                            if (i_raw !== undefined) {
-                                textarea.file_raw = i_data.file;
+                        cms.getObject(data.file, language, ContentManager.RAW, raw => {
+                            textarea.hmi_value(raw !== undefined ? raw : '');
+                            if (raw !== undefined) {
+                                textarea.file_raw = data.file;
                                 handleScrolls(scrolls_raw, textarea.file_raw, textarea, true);
                             }
-                            i_success();
-                        }, function (i_exception) {
+                            onSuccess();
+                        }, error => {
                             textarea.hmi_value('');
-                            i_error(i_exception);
+                            onError(error);
                         });
                         break;
                     case ContentManager.INCLUDE:
-                        cms.getObject(i_data.file, i_language, ContentManager.INCLUDE, function (i_build) {
-                            textarea.hmi_value(i_build !== undefined ? i_build : '');
-                            if (i_build !== undefined) {
-                                textarea.file_build = i_data.file;
+                        cms.getObject(data.file, language, ContentManager.INCLUDE, build => {
+                            textarea.hmi_value(build !== undefined ? build : '');
+                            if (build !== undefined) {
+                                textarea.file_build = data.file;
                                 handleScrolls(scrolls_build, textarea.file_build, textarea, true);
                             }
-                            i_success();
-                        }, function (i_exception) {
+                            onSuccess();
+                        }, error => {
                             textarea.hmi_value('');
-                            i_error(i_exception);
+                            onError(error);
                         });
                         break;
                 }
-            }
-            else {
+            } else {
                 textarea.hmi_value('');
-                i_success();
+                onSuccess();
             }
         };
-        var textarea = {
+        let textarea = {
             x: 0,
             y: 0,
             width: 3,
@@ -1220,102 +1211,94 @@
             code: 'javascript',
             editable: false
         };
-        var info_lang = {
+        let info_lang = {
             x: 0,
             y: 1,
             align: 'left'
         };
-        var button_include = {
+        let button_include = {
             x: 1,
             y: 1,
             text: 'include',
             border: true,
-            clicked: function () {
-                update_mode(ContentManager.INCLUDE);
-            }
+            clicked: () => update_mode(ContentManager.INCLUDE)
         };
-        var button_raw = {
+        let button_raw = {
             x: 2,
             y: 1,
             text: 'raw',
             border: true,
             selected: true,
-            clicked: function () {
-                update_mode(ContentManager.RAW);
-            }
+            clicked: () => update_mode(ContentManager.RAW)
         };
         return {
             type: 'grid',
             columns: [1, DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH],
             rows: [1, DEFAULT_ROW_HEIGHT],
             children: [textarea, info_lang, button_include, button_raw],
-            keyChanged: function (i_data, i_language, i_success, i_error) {
-                info_lang.hmi_text('language: "' + i_language + '"');
+            keyChanged: (data, language, onSuccess, onError) => {
+                info_lang.hmi_text('language: "' + language + '"');
                 button_include.hmi_setEnabled(false);
                 button_raw.hmi_setEnabled(false);
-                reload(i_data, i_language, function () {
+                reload(data, language, () => {
                     button_include.hmi_setEnabled(true);
                     button_raw.hmi_setEnabled(true);
-                    i_success();
-                }, function (i_exception) {
+                    onSuccess();
+                }, error => {
                     button_include.hmi_setEnabled(true);
                     button_raw.hmi_setEnabled(true);
-                    i_error(i_exception);
+                    onError(error);
                 });
             },
-            scrolls_raw: scrolls_raw,
-            scrolls_build: scrolls_build
+            scrolls_raw,
+            scrolls_build
         };
-    };
+    }
 
-    var get_txt_editor = function (i_hmi, i_adapter) {
-        var cms = i_hmi.cms, scrolls = {};
-        var reload = function (i_data, i_language, i_success, i_error) {
-            info_lang.hmi_text('language: "' + i_language + '"');
+    function getTxtEditor(hmi, adapter) {
+        let cms = hmi.cms, scrolls = {};
+        function reload(data, language, onSuccess, onError) {
+            info_lang.hmi_text('language: "' + language + '"');
             if (textarea.file) {
                 handleScrolls(scrolls, textarea.file, textarea, false);
                 delete textarea.file;
             }
-            if (i_data && i_data.file) {
-                cms.getObject(i_data.file, i_language, ContentManager.RAW, function (i_raw) {
-                    textarea.hmi_value(i_raw !== undefined ? i_raw : '');
-                    if (i_raw !== undefined) {
-                        textarea.file = i_data.file;
+            if (data && data.file) {
+                cms.getObject(data.file, language, ContentManager.RAW, raw => {
+                    textarea.hmi_value(raw !== undefined ? raw : '');
+                    if (raw !== undefined) {
+                        textarea.file = data.file;
                         handleScrolls(scrolls, textarea.file, textarea, true);
                     }
-                    i_success();
-                }, function (i_exception) {
+                    onSuccess();
+                }, error => {
                     textarea.hmi_value('');
-                    i_error(i_exception);
+                    onError(error);
                 });
-            }
-            else {
+            } else {
                 textarea.hmi_value('');
-                i_success();
+                onSuccess();
             }
         };
-        var textarea = {
+        let textarea = {
             x: 0,
             y: 0,
             type: 'textarea',
             code: 'javascript',
             editable: true,
-            prepare: function (that, i_success, i_error) {
-                this.hmi_addChangeListener(i_adapter.edited);
-                i_success();
+            prepare: (that, onSuccess, onError) => {
+                that.hmi_addChangeListener(adapter.edited);
+                onSuccess();
             },
-            destroy: function (that, i_success, i_error) {
-                this.hmi_removeChangeListener(i_adapter.edited);
-                i_success();
+            destroy: (that, onSuccess, onError) => {
+                that.hmi_removeChangeListener(adapter.edited);
+                onSuccess();
             }
         };
-        var info_lang = {
+        let info_lang = {
             x: 0,
             y: 1,
             align: 'left'
-        };
-        var get_value = function () {
-            return textarea.hmi_value().trim();
         };
         return {
             type: 'grid',
@@ -1323,10 +1306,10 @@
             rows: [1, DEFAULT_ROW_HEIGHT],
             children: [textarea, info_lang],
             keyChanged: reload,
-            getValue: get_value,
-            scrolls: scrolls
+            getValue: () => textarea.hmi_value().trim(),
+            scrolls
         };
-    };
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // JSONFX - PREVIEW & EDITOR
@@ -1785,8 +1768,8 @@
         };
         i_adapter.triggerReload = reload;
         var lab = getLabPreview(i_hmi, i_adapter);
-        var htm = get_htm_preview(i_hmi, i_adapter);
-        var txt = get_txt_preview(i_hmi, i_adapter);
+        var htm = getHtmPreview(i_hmi, i_adapter);
+        var txt = getTxtPreview(i_hmi, i_adapter);
         var jso = get_jso_preview(i_hmi, i_adapter);
         var handlers = {};
         cms.getDescriptors(function (i_ext, i_desc) {
@@ -2070,8 +2053,8 @@
             perform_commit(i_value);
         };
         var lab = getLabEditor(i_hmi, i_adapter);
-        var htm = get_htm_editor(i_hmi, i_adapter);
-        var txt = get_txt_editor(i_hmi, i_adapter);
+        var htm = getHtmEditor(i_hmi, i_adapter);
+        var txt = getTxtEditor(i_hmi, i_adapter);
         var jso = get_jso_editor(i_hmi, i_adapter);
         var handlers = {};
         cms.getDescriptors(function (i_ext, i_desc) {
