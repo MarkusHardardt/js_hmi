@@ -100,163 +100,122 @@
         } else {
             return { cont: htm, desc };
         }
-    };
+    }
 
-    var update_container = function (i_cont, i_prev, i_next, i_data, i_language, i_success, i_error) {
-        if (i_prev) {
-            if (i_next) {
-                if (i_prev !== i_next) {
-                    i_prev.keyChanged(false, i_language, function () {
-                        i_cont.hmi_removeContent(function () {
-                            i_cont.hmi_setContent(i_next, function () {
-                                i_next.keyChanged(i_data, i_language, i_success, i_error);
-                            }, i_error);
-                        }, i_error);
-                    }, i_error);
+    function updateContainer(container, previous, next, data, language, onSuccess, onError) {
+        if (previous) {
+            if (next) {
+                if (previous !== next) {
+                    previous.keyChanged(false, language, () => {
+                        container.hmi_removeContent(() => {
+                            container.hmi_setContent(next, () => next.keyChanged(data, language, onSuccess, onError), onError);
+                        }, onError);
+                    }, onError);
+                } else {
+                    next.keyChanged(data, language, onSuccess, onError);
                 }
-                else {
-                    i_next.keyChanged(i_data, i_language, i_success, i_error);
-                }
+            } else {
+                previous.keyChanged(false, language, () => container.hmi_removeContent(onSuccess, onError), onError);
             }
-            else {
-                i_prev.keyChanged(false, i_language, function () {
-                    i_cont.hmi_removeContent(i_success, i_error);
-                }, i_error);
-            }
+        } else if (next) {
+            container.hmi_setContent(next, () => next.keyChanged(data, language, onSuccess, onError), onError);
+        } else {
+            onSuccess();
         }
-        else if (i_next) {
-            i_cont.hmi_setContent(i_next, function () {
-                i_next.keyChanged(i_data, i_language, i_success, i_error);
-            }, i_error);
-        }
-        else {
-            i_success();
-        }
-    };
+    }
 
-    var perform_modification = function (i_hmi, i_startEditChecksum, i_startEditId, i_id, i_language, i_value, i_success, i_error) {
-        var cms = i_hmi.cms, tasks = [], checksum = false, equal_id = i_startEditId === i_id;
+    function performModification(hmi, startEditChecksum, startEditId, id, language, value, onSuccess, onError) {
+        let cms = hmi.cms, tasks = [], checksum = false, equal_id = startEditId === id;
         if (equal_id) {
-            tasks.push(function (i_suc, i_err) {
-                cms.getChecksum(i_id, function (i_checksum) {
-                    checksum = i_checksum;
-                    i_suc();
-                }, i_err);
+            tasks.push((onSuc, onErr) => {
+                cms.getChecksum(id, cs => {
+                    checksum = cs;
+                    onSuc();
+                }, onErr);
             });
         }
-        Executor.run(tasks, function () {
-            if (equal_id && i_startEditChecksum !== checksum) {
+        Executor.run(tasks, () => {
+            if (equal_id && startEditChecksum !== checksum) {
                 var txt = '<b>';
                 txt += 'Object has been modified!';
                 txt += '</b><br><code>';
-                txt += i_id;
+                txt += id;
                 txt += '</code><br><br>';
                 txt += 'Select new id';
-                i_hmi.showDefaultConfirmationPopup({
+                hmi.showDefaultConfirmationPopup({
                     width: $(window).width() * 0.4,
                     height: $(window).height() * 0.3,
                     title: 'Warning',
                     html: txt,
-                    ok: function () {
-                        i_success(false);
-                    },
-                    closed: function () {
-                        i_success(false);
-                    }
+                    ok: () => onSuccess(false),
+                    closed: () => onSuccess(false)
                 });
             }
             else {
-                cms.getModificationParams(i_id, i_language, i_value, function (i_params) {
-                    if (typeof i_params.error === 'string') {
-                        if (typeof i_error === 'function') {
-                            i_error(i_params.error);
+                cms.getModificationParams(id, language, value, params => {
+                    if (typeof params.error === 'string') {
+                        if (typeof onError === 'function') {
+                            onError(params.error);
                         }
-                    }
-                    else if (i_params.action === 'delete') {
-                        if (Array.isArray(i_params.externalUsers) && i_params.externalUsers.length > 0) {
+                    } else if (params.action === 'delete') {
+                        if (Array.isArray(params.externalUsers) && params.externalUsers.length > 0) {
                             var txt = '<b>';
                             txt += 'Object is referenced!';
                             txt += '</b><br><b>';
                             txt += 'Sure to proceed?';
                             txt += '</b><br><code>';
-                            for (var i = 0; i < i_params.externalUsers.length; i++) {
+                            for (var i = 0; i < params.externalUsers.length; i++) {
                                 if (i > 10) {
                                     txt += '<br>...';
                                     break;
                                 }
                                 txt += '<br>';
-                                txt += i_params.externalUsers[i];
+                                txt += params.externalUsers[i];
                             }
                             txt += '</code>';
-                            i_hmi.showDefaultConfirmationPopup({
+                            hmi.showDefaultConfirmationPopup({
                                 width: $(window).width() * 0.8,
                                 height: $(window).height() * 0.8,
                                 title: 'Warning',
                                 html: txt,
-                                yes: function () {
-                                    cms.setObject(i_id, i_language, i_value, i_params.checksum, function () {
-                                        i_success(i_params);
-                                    }, i_error);
-                                },
-                                cancel: function () {
-                                    i_success(false);
-                                },
-                                closed: function () {
-                                    i_success(false);
-                                }
+                                yes: () => cms.setObject(id, language, value, params.checksum, () => onSuccess(params), onError),
+                                cancel: () => onSuccess(false),
+                                closed: () => onSuccess(false)
                             });
+                        } else {
+                            cms.setObject(id, language, value, params.checksum, () => onSuccess(params), onError);
                         }
-                        else {
-                            cms.setObject(i_id, i_language, i_value, i_params.checksum, function () {
-                                i_success(i_params);
-                            }, i_error);
-                        }
-                    }
-                    // if the id has changed
-                    else if (!equal_id) {
-                        cms.exists(i_id, function (i_exists) {
-                            if (i_exists !== false) {
+                    } else if (!equal_id) {
+                        // if the id has changed
+                        cms.exists(id, exists => {
+                            if (exists !== false) {
                                 var txt = '<b>';
                                 txt += 'Identificator already exists!';
                                 txt += '</b><br><code>';
-                                txt += i_id;
+                                txt += id;
                                 txt += '</code><br><br>';
                                 txt += 'Sure to proceed?';
-                                i_hmi.showDefaultConfirmationPopup({
+                                hmi.showDefaultConfirmationPopup({
                                     width: $(window).width() * 0.8,
                                     height: $(window).height() * 0.8,
                                     title: 'Warning',
                                     html: txt,
-                                    yes: function () {
-                                        cms.setObject(i_id, i_language, i_value, i_params.checksum, function () {
-                                            i_success(i_params);
-                                        }, i_error);
-                                    },
-                                    cancel: function () {
-                                        i_success(false);
-                                    },
-                                    closed: function () {
-                                        i_success(false);
-                                    }
+                                    yes: () => cms.setObject(id, language, value, params.checksum, () => onSuccess(params), onError),
+                                    cancel: () => onSuccess(false),
+                                    closed: () => onSuccess(false)
                                 });
+                            } else {
+                                cms.setObject(id, language, value, params.checksum, () => onSuccess(params), onError);
                             }
-                            else {
-                                cms.setObject(i_id, i_language, i_value, i_params.checksum, function () {
-                                    i_success(i_params);
-                                }, i_error);
-                            }
-                        }, i_error)
+                        }, onError)
+                    } else {
+                        // selected node has changed
+                        cms.setObject(id, language, value, params.checksum, () => onSuccess(params), onError);
                     }
-                    // selected node has changed
-                    else {
-                        cms.setObject(i_id, i_language, i_value, i_params.checksum, function () {
-                            i_success(i_params);
-                        }, i_error);
-                    }
-                }, i_error);
+                }, onError);
             }
-        }, i_error);
-    };
+        }, onError);
+    }
 
     var perform_refactoring = function (i_hmi, i_source, i_target, i_action, i_success, i_error) {
         var cms = i_hmi.cms;
@@ -1903,7 +1862,7 @@
             unstress(function (i_success, i_error) {
                 var handler = sel_data.extension ? handlers[sel_data.extension] : false;
                 var next = handler ? handler.cont : false;
-                update_container(container, preview, next, sel_data, language, function () {
+                updateContainer(container, preview, next, sel_data, language, function () {
                     preview = next;
                     i_success();
                 }, i_error);
@@ -2110,7 +2069,7 @@
                 handler = sel_data !== false && sel_data.extension ? handlers[sel_data.extension] : false;
                 var next = handler ? handler.cont : false;
                 editListenerEnabled = false;
-                update_container(edit_container, editor, next, sel_data, sel_lang, function () {
+                updateContainer(edit_container, editor, next, sel_data, sel_lang, function () {
                     editListenerEnabled = true;
                     editor = next;
                     if (sel_data.file) {
@@ -2154,7 +2113,7 @@
             update();
             var data = i_adapter.getIdData();
             var lang = sel_data.multiedit ? undefined : edit_lang;
-            perform_modification(i_hmi, edit_cs, edit_data.file, data.file, lang, i_value, function (i_params) {
+            performModification(i_hmi, edit_cs, edit_data.file, data.file, lang, i_value, function (i_params) {
                 pending_commit = false;
                 if (i_params) {
                     edited = false;
