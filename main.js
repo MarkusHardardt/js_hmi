@@ -50,9 +50,7 @@
     hmi.lib.regex = Regex;
     hmi.lib.sql = SqlHelper;
     // add hmi-object-framweork
-    hmi.create = function (object, element, onSuccess, onError, initData) {
-        hmi_object.create(object, element, onSuccess, onError, hmi, initData);
-    };
+    hmi.create = (object, element, onSuccess, onError, initData) => hmi_object.create(object, element, onSuccess, onError, hmi, initData);
     hmi.destroy = hmi_object.destroy;
     hmi.env = {
         isInstance: instance => false, // TODO: Implement isInstance(instance)
@@ -86,26 +84,108 @@
     webServer.AddStaticFile('./ext/jquery/dataTables.pageResize.min.js');
     webServer.AddStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
     */
-    webServer.addStaticFile('./node_modules/codemirror/lib/codemirror.css');
-    webServer.addStaticFile('./node_modules/codemirror/lib/codemirror.js');
-    webServer.addStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
-    webServer.addStaticFile('./node_modules/codemirror/mode/xml/xml.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/edit/matchbrackets.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/edit/closebrackets.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/search/search.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/dialog/dialog.css');
-    webServer.addStaticFile('./node_modules/codemirror/addon/dialog/dialog.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/search/searchcursor.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/search/match-highlighter.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/hint/show-hint.css');
-    webServer.addStaticFile('./node_modules/codemirror/addon/hint/show-hint.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/hint/javascript-hint.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
-    webServer.addStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
-    webServer.addStaticFile('./node_modules/file-saver/dist/' + (minimized ? 'FileSaver.min.js' : 'FileSaver.js'));
+    webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.css');
+    webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.js');
+    webServer.AddStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
+    webServer.AddStaticFile('./node_modules/codemirror/mode/xml/xml.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/edit/matchbrackets.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/edit/closebrackets.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/search.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.css');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/searchcursor.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/match-highlighter.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.css');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/javascript-hint.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
+    webServer.AddStaticFile('./node_modules/file-saver/dist/' + (minimized ? 'FileSaver.min.js' : 'FileSaver.js'));
+    webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify.js');
+    webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-html.js');
+    webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-css.js');
     addStaticWebServerJsUtilsFiles(webServer);
     // No content - will be generated at runtime inside browser
     webServer.SetBody('');
+    // deliver main config to client
+    webServer.Post('/get_client_config', (request, response) => {
+        response.send(jsonfx.stringify(main_config.client, false));
+    });
+
+    // prepare content management system
+    // we need the handler for database access
+    const sqlHelper = new SqlHelper(db_access, s_verbose_sql_queries);
+    // we directly replace our icon directory to make sure on server and client
+    // (with debug proxy too) our icons will be available
+    db_config.icon_dir = '/' + webServer.AddStaticDir(db_config.icon_dir) + '/';
+    db_config.jsonfx_pretty = main_config.jsonfx_pretty === true;
+    hmi.cms = new ContentManager(sqlHelper.createAdapter, db_config);
+    // we need access via ajax from clients
+    webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
+        hmi.cms.handleRequest(request.body,
+            result => response.send(jsonfx.stringify(result, false)),
+            error => response.send(jsonfx.stringify(error.toString(), false))
+        );
+    });
+    // the tree control requests da via 'GET' so we handle those request
+    // separately
+    webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, (request, response) => {
+        hmi.cms.handleFancyTreeRequest(request.query.request, request.query.path,
+            result => response.send(jsonfx.stringify(result, false)),
+            error => response.send(jsonfx.stringify(error.toString(), false))
+        );
+    });
+    // build document
+    var document_body = '';
+
+    function addStaticFiles(file) {
+        if (Array.isArray(file)) {
+            for (var i = 0, l = file.length; i < l; i++) {
+                addStaticFiles(file[i]);
+            }
+        }
+        else if (typeof file === 'string' && file.length > 0) {
+            webServer.AddStaticFile(file);
+        }
+    }
+    addStaticFiles(main_config.static_client_files);
+    webServer.AddStaticFile(main_config.touch ? main_config.scrollbar_hmi : main_config.scrollbar_config);
+    // TODO only in config mode
+    webServer.AddStaticFile('./src/ContentEditor.js');
+    // add the final static file: our hmi main loader
+    webServer.AddStaticFile('./src/app/hmi_main.js');
+
+    webServer.setBody(document_body);
+
+    if (main_config.server.test_enabled) {
+        tasks.push(function (i_success, i_error) {
+            var performTests = require('./src/test/Test.js');
+            performTests(hmi, i_success, i_error);
+        });
+    }
+    tasks.push(function (i_success, i_error) {
+        if (typeof main_config.server.cycle_millis === 'number' && main_config.server.cycle_millis > 0) {
+            setInterval(function () {
+                hmi_object.refresh(new Date());
+            }, main_config.server.cycle_millis);
+            i_success();
+        }
+        else {
+            i_error('Invalid cycle millis');
+        }
+    });
+    // finally ...
+    Executor.run(tasks, function () {
+        Object.seal(hmi);
+        // start server if required
+        if (typeof main_config.server.web_server_port === 'number') {
+            webServer.listen(main_config.server.web_server_port, function () {
+                console.log('hmijs web server listening on port: ' + main_config.server.web_server_port);
+            });
+        }
+    }, function (i_exc) {
+        console.error(i_exc);
+    });
 
 }());
