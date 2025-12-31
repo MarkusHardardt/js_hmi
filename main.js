@@ -24,6 +24,15 @@
         addStaticWebServerJsUtilsFiles
     } = require('@markus.hardardt/js_utils/js_utils.js');
 
+
+    // debug
+    const s_verbose_sql_queries = !true;
+
+    // load configurations
+    const main_config = require('./main_config.json');
+    const db_access = require('./config/db_access.json');
+    const db_config = require('./config/db_config.json');
+
     // Determine config file
     var configFile = './config.json';
     if (process.argv.length > 2 && /\.json$/.test(process.argv[2])) {
@@ -43,6 +52,6 @@
     // No content - will be generated at runtime inside browser
     webServer.SetBody('');
 
-	// TODO ...
+    // TODO ...
 
 }());

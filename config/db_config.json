@@ -1,0 +1,44 @@
+{
+  "icon_dir": "./config/icons",
+  "folder_icon": "folder.gif",
+  "max_parallel_queries" : 8,
+  "languages" : [
+    "de",
+    "en",
+    "es",
+    "fr",
+    "it"
+  ],
+  "tables": [
+    {
+      "name": "jso",
+      "extension": "j",
+      "key_column": "key",
+      "jsonfx": true,
+      "value_column": "value",
+      "icon": "jso.gif"
+    },
+    {
+      "name": "txt",
+      "extension": "t",
+      "key_column": "key",
+      "value_column": "value",
+      "icon": "txt.gif"
+    },
+    {
+      "name": "lab",
+      "extension": "l",
+      "key_column": "key",
+      "value_column_prefix": "value_",
+      "multiedit": true,
+      "icon": "lab.gif"
+    },
+    {
+      "name": "htm",
+      "extension": "h",
+      "key_column": "key",
+      "value_column_prefix": "value_",
+      "icon": "htm.gif"
+    }
+  ]
+}

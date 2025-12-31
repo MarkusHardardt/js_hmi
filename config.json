@@ -1,0 +1,12 @@
+{
+    "webServerPort": 8080,
+    "webSocketPort": 8081,
+    "_secureKeyFile": "./cert/cert.key",
+    "_secureCertFile": "./cert/cert.cert",
+    "autoConnect": true,
+    "closedConnectionDisposeTimeout": 6000,
+    "subscribeDelay": 200,
+    "unsubscribeDelay": 5000,
+    "sendDelay": 200,
+    "simulationCycleMillis": 500
+}
