@@ -91,25 +91,24 @@
     webServer.AddStaticFile('./ext/jquery/dataTables.pageResize.min.js');
     webServer.AddStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
     */
-    /* // TODO: https://codemirror.net/docs/migration/
-     webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.css');
-     webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.js');
-     webServer.AddStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
-     webServer.AddStaticFile('./node_modules/codemirror/mode/xml/xml.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/edit/matchbrackets.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/edit/closebrackets.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/search/search.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.css');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/search/searchcursor.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/search/match-highlighter.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.css');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/hint/javascript-hint.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
-     webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
-     */
+    // TODO: https://codemirror.net/docs/migration/   => CodeMirror.fromTextArea
+    webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.css');
+    webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.js');
+    webServer.AddStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
+    webServer.AddStaticFile('./node_modules/codemirror/mode/xml/xml.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/edit/matchbrackets.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/edit/closebrackets.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/search.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.css');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/searchcursor.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/match-highlighter.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.css');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/javascript-hint.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
+    webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
 
     webServer.AddStaticFile('./node_modules/file-saver/dist/' + (minimized ? 'FileSaver.min.js' : 'FileSaver.js'));
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify.js');
@@ -122,6 +121,15 @@
     webServer.AddStaticFile('./src/BrowserMain.js');
     // No content - will be generated at runtime inside browser
     webServer.SetBody('');
+
+    /* let body = ''; // TODO Handle CodeMirror v5 -> v6 issues
+    body += '<script type="module">\n';
+    body += 'import { attachBrowserFeatures } from "./src/Client.js";\n';
+    body += 'import "./src/ObjectLifecycleManager.js";\n';
+    body += 'attachBrowserFeatures(window.ObjectLifecycleManager);\n';
+    //body += 'const olm = new ObjectLifecycleManager();\n';
+    body += '</script>\n';
+    webServer.SetBody(body); */
     // deliver main config to client
     webServer.Post('/get_client_config', (request, response) => response.send(jsonfx.stringify(main_config.client, false)));
 
