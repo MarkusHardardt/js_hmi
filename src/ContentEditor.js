@@ -707,51 +707,45 @@
     // MAIN NAIGATION BROWSER
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    var get_navigator = function (i_hmi, i_adapter, i_key_textfield, i_browser_tree, i_search_container) {
-        var cms = i_hmi.cms;
-        var update_mode = function (i_button) {
-            button_select_browse.selected = i_button === button_select_browse;
+    function getNavigator(hmi, adapter, keyTextfield, browserTree, searchContainer) {
+        function update_mode(button) {
+            button_select_browse.selected = button === button_select_browse;
             button_select_browse.hmi_setSelected(button_select_browse.selected);
-            button_select_search.selected = i_button === button_select_search;
+            button_select_search.selected = button === button_select_search;
             button_select_search.hmi_setSelected(button_select_search.selected);
             if (button_select_browse.selected) {
-                i_adapter.showBrowserTree();
-            }
-            else {
-                i_adapter.showSearchTable();
+                adapter.showBrowserTree();
+            } else {
+                adapter.showSearchTable();
             }
         };
-        var button_select_browse = {
+        let button_select_browse = {
             x: 1,
             y: 0,
             text: 'browse',
             border: true,
             selected: true,
-            clicked: function () {
-                update_mode(this);
-            }
+            clicked: () => update_mode(button_select_browse)
         };
-        var button_select_search = {
+        let button_select_search = {
             x: 2,
             y: 0,
             text: 'search',
             border: true,
-            clicked: function () {
-                update_mode(this);
-            }
+            clicked: () => update_mode(button_select_search)
         };
-        var button_reload = {
+        let button_reload = {
             x: 3,
             y: 0,
             text: 'reload',
             border: true,
-            clicked: i_adapter.reload
+            clicked: adapter.reload
         };
         return {
             type: 'grid',
             columns: 1,
             rows: [DEFAULT_ROW_HEIGHT, DEFAULT_ROW_HEIGHT, 1],
-            children: [i_key_textfield, {
+            children: [keyTextfield, {
                 type: 'grid',
                 x: 0,
                 y: 1,
@@ -763,12 +757,10 @@
                     align: 'right',
                     text: 'hmijs-content-manager'
                 }, button_select_browse, button_select_search, button_reload]
-            }, i_browser_tree, i_search_container],
-            showBrowser: function () {
-                update_mode(button_select_browse);
-            }
+            }, browserTree, searchContainer],
+            showBrowser: () => update_mode(button_select_browse)
         };
-    };
+    }
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////
     // CROSS REFERENCES BROWSER
@@ -2313,7 +2305,7 @@
         var key_textfield = getKeyTextfield(i_hmi, key_textfield_adapter);
         var browser_tree = getBrowserTree(i_hmi, browser_tree_adapter);
         var search_container = getSearchContainer(i_hmi, search_container_adapter);
-        var navigator = get_navigator(i_hmi, navigator_adapter, key_textfield, browser_tree, search_container);
+        var navigator = getNavigator(i_hmi, navigator_adapter, key_textfield, browser_tree, search_container);
         var references = get_references(i_hmi, references_adapter);
         var refactoring = get_refactoring(i_hmi, refactoring_adapter);
         var edit_ctrl = get_edit_controller(i_hmi, edit_ctrl_adapter);
