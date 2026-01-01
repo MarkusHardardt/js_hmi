@@ -415,7 +415,7 @@
                 };
                 let popup_object = {
                     type: 'split',
-                    topSize: math.GOLDEN_CUT_INVERTED,
+                    topSize: Mathematics.GOLDEN_CUT_INVERTED,
                     columns: 1,
                     rows: [3, 1],
                     children: [table, textarea]
@@ -2285,11 +2285,11 @@
                 x: 0,
                 y: 1,
                 type: 'split',
-                rightSize: math.GOLDEN_CUT_INVERTED,
+                rightSize: Mathematics.GOLDEN_CUT_INVERTED,
                 children: [{
                     location: 'left',
                     type: 'split',
-                    topSize: math.GOLDEN_CUT_INVERTED,
+                    topSize: Mathematics.GOLDEN_CUT_INVERTED,
                     children: [navigator, references]
                 }, {
                     location: 'right',

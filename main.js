@@ -5,7 +5,7 @@
         Executor, // direct access: const Executor = require('@markus.hardardt/js_utils/src/Executor.js');
         HashLists, // direct access: const HashLists = require('@markus.hardardt/js_utils/src/HashLists.js');
         JsonFX, // direct access: const JsonFX = require('@markus.hardardt/js_utils/src/JsonFX.js');
-        math, // direct access: const math = require('@markus.hardardt/js_utils/src/math.js');
+        Mathematics, // direct access: const Mathematics = require('@markus.hardardt/js_utils/src/Mathematics.js');
         ObjectPositionSystem, // direct access: const ObjectPositionSystem = require('@markus.hardardt/js_utils/src/ObjectPositionSystem.js');
         Regex, // direct access: const Regex = require('@markus.hardardt/js_utils/src/Regex.js');
         Server, // direct access: const Server = require('@markus.hardardt/js_utils/src/Server.js');
@@ -43,8 +43,8 @@
     const hmi = {}; // TODO: -> "sys"
     // here we add our libraries
     hmi.lib = {};
-    // load math
-    hmi.lib.math = math;
+    // load Mathematics
+    hmi.lib.Mathematics = Mathematics;
     hmi.lib.JsonFX = JsonFX;
     hmi.lib.exec = Executor;
     hmi.lib.regex = Regex;

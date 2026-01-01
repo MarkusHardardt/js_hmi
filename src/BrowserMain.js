@@ -7,8 +7,8 @@
     hmi.debug_breakpoint = window.debug_breakpoint;
     // here we add our libraries
     hmi.lib = {};
-    // load math
-    hmi.lib.math = root.math;
+    // load Mathematics
+    hmi.lib.Mathematics = root.Mathematics;
     hmi.lib.JsonFX = root.JsonFX;
     hmi.lib.exec = root.Executor;
     hmi.lib.regex = root.Regex;
