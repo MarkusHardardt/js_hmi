@@ -27,8 +27,8 @@
         // load client config
         let config = false;
         tasks.push((onSuccess, onError) => {
-            Client.fetchJsonAsync('/get_client_config', null, cfg => {
-                config = cfg;
+            Client.fetch('/get_client_config', null, response => {
+                config = JSON.parse(response);
                 onSuccess();
             }, onError);
         });
