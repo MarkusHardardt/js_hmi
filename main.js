@@ -21,6 +21,7 @@
         TargetSystem, // direct access: const TargetSystem = require('@markus.hardardt/js_utils/src/TargetSystem.js');
         WebSocketConnection, // direct access: const WebSocketConnection = require('@markus.hardardt/js_utils/src/WebSocketConnection.js');
         DataConnector, // direct access: const DataConnector = require('@markus.hardardt/js_utils/src/DataConnector.js');
+        md5, // direct access: const md5 = require('@markus.hardardt/js_utils/ext/md5.js'); // external
         addStaticWebServerJsUtilsFiles
     } = require('@markus.hardardt/js_utils/js_utils.js');
 
@@ -131,7 +132,9 @@
     body += '</script>\n';
     webServer.SetBody(body); */
     // deliver main config to client
-    webServer.Post('/get_client_config', (request, response) => response.send(jsonfx.stringify(main_config.client, false)));
+    webServer.Post('/get_client_config', (request, response) => response.send(JSON.stringify({
+        requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle
+    })));
 
     // prepare content management system
     // we need the handler for database access
@@ -144,16 +147,16 @@
     // we need access via ajax from clients
     webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
         hmi.cms.handleRequest(request.body,
-            result => response.send(jsonfx.stringify(result, false)),
-            error => response.send(jsonfx.stringify(error.toString(), false))
+            result => response.send(JSON.stringify(result)),
+            error => response.send(JSON.stringify(error.toString()))
         );
     });
     // the tree control requests da via 'GET' so we handle those request
     // separately
     webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, (request, response) => {
         hmi.cms.handleFancyTreeRequest(request.query.request, request.query.path,
-            result => response.send(jsonfx.stringify(result, false)),
-            error => response.send(jsonfx.stringify(error.toString(), false))
+            result => response.send(JSON.stringify(result)),
+            error => response.send(JSON.stringify(error.toString()))
         );
     });
     function addStaticFiles(file) {
@@ -169,14 +172,9 @@
     webServer.AddStaticFile(main_config.touch ? main_config.scrollbar_hmi : main_config.scrollbar_config);
 
     const tasks = [];
-
     tasks.push((onSuccess, onError) => {
-        if (typeof main_config.server.cycle_millis === 'number' && main_config.server.cycle_millis > 0) {
-            setInterval(() => ObjectLifecycleManager.refresh(new Date()), main_config.server.cycle_millis);
-            onSuccess();
-        } else {
-            onError('Invalid cycle millis');
-        }
+        Server.startRefreshCycle(config.serverCycleMillis, () => ObjectLifecycleManager.refresh(new Date()));
+        onSuccess();
     });
     // finally ...
     Executor.run(tasks, () => {

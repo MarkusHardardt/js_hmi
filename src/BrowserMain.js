@@ -22,28 +22,19 @@
     hmi.showDefaultConfirmationPopup = (config, onSuccess, onError) => ObjectLifecycleManager.showDefaultConfirmationPopup(hmi, config, onSuccess, onError);
     // all static files have been loaded and now we create the hmi.
     $(() => {
-        const main = [];
-        main.parallel = false;
+        const tasks = [];
+        tasks.parallel = false;
         // load client config
         let config = false;
-        main.push((onSuccess, onError) => {
-            $.ajax({ // TODO: Replace
-                type: 'POST',
-                url: '/get_client_config',
-                contentType: 'application/json;charset=utf-8',
-                data: '',
-                dataType: 'text',
-                success: cfg => {
-                    config = jsonfx.parse(cfg, false, true);
-                    onSuccess();
-                },
-                error: onError,
-                timeout: 10000
-            });
+        tasks.push((onSuccess, onError) => {
+            Client.fetchJsonAsync('/get_client_config', null, cfg => {
+                config = cfg;
+                onSuccess();
+            }, onError);
         });
         // prepare content management system
-        main.push((onSuccess, onError) => hmi.cms = new ContentManager.Proxy(onSuccess, onError));
-        main.push((onSuccess, onError) => {
+        tasks.push((onSuccess, onError) => hmi.cms = new ContentManager.Proxy(onSuccess, onError));
+        tasks.push((onSuccess, onError) => {
             const languages = hmi.cms.getLanguages();
             if (Array.isArray(languages) && languages.length > 0) {
                 hmi.languages = languages;
@@ -53,23 +44,12 @@
                 onError('no languages available');
             }
         });
-        main.push((onSuccess, onError) => {
-            let raf_cycle = typeof config.raf_cycle === 'number' && config.raf_cycle > 0 ? config.raf_cycle : 60;
-            let raf_idx = 0;
-            let loop = () => {
-                raf_idx++;
-                if (raf_idx >= raf_cycle) {
-                    raf_idx = 0;
-                    ObjectLifecycleManager.refresh(new Date());
-                }
-                window.requestAnimationFrame(loop, document.body);
-            };
-            // start the loop
-            window.requestAnimationFrame(loop, document.body);
+        tasks.push((onSuccess, onError) => {
+            Client.startRefreshCycle(config.requestAnimationFrameCycle, () => ObjectLifecycleManager.refresh(new Date()));
             onSuccess();
         });
         // load hmi
-        Executor.run(main, () => {
+        Executor.run(tasks, () => {
             Object.seal(hmi);
             var body = $(document.body);
             body.empty();
