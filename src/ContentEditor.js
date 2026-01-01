@@ -16,9 +16,9 @@
     // ///////////////////////////////////////////////////////////////////////////////////////////////
 
     function handleScrolls(scrolls, id, textarea, restore) {
-        scrolls = textarea.hmi_handleScrollParams(scrolls[id], restore);
-        if (scrolls.viewport_left > 0 || scrolls.viewport_top) {
-            scrolls[id] = scrolls;
+        const scrs = textarea.hmi_handleScrollParams(scrolls[id], restore);
+        if (scrs.viewport_left > 0 || scrs.viewport_top) {
+            scrolls[id] = scrs;
         }
         else {
             delete scrolls[id];
@@ -26,14 +26,14 @@
     }
 
     function updateScrolls(scrolls, params) {
+        let objs = params.objects, i, l = scrolls.length, scrs, src = params.source, data, attr, copy;
         switch (params.action) {
             case ContentManager.COPY:
-                var objs = params.objects, i, l = scrolls.length, scrolls, src, data, attr, copy;
                 for (src in objs) {
                     if (objs.hasOwnProperty(src)) {
                         for (i = 0; i < l; i++) {
-                            scrolls = scrolls[i];
-                            data = scrolls[src];
+                            scrs = scrolls[i];
+                            data = scrs[src];
                             if (data) {
                                 copy = {};
                                 for (attr in data) {
@@ -41,29 +41,27 @@
                                         copy[attr] = data[attr];
                                     }
                                 }
-                                scrolls[objs[src]] = copy;
+                                scrs[objs[src]] = copy;
                             }
                         }
                     }
                 }
                 break;
             case ContentManager.MOVE:
-                var objs = params.objects, i, l = scrolls.length, scrolls, src;
                 for (src in objs) {
                     if (objs.hasOwnProperty(src)) {
                         for (i = 0; i < l; i++) {
-                            scrolls = scrolls[i];
-                            data = scrolls[src];
+                            scrs = scrolls[i];
+                            data = scrs[src];
                             if (data) {
-                                delete scrolls[src];
-                                scrolls[objs[src]] = data;
+                                delete scrs[src];
+                                scrs[objs[src]] = data;
                             }
                         }
                     }
                 }
                 break;
             case ContentManager.DELETE:
-                var objs = params.objects, i, l = scrolls.length, scrolls, src = params.source;
                 if (objs) {
                     for (src in objs) {
                         if (objs.hasOwnProperty(src)) {
