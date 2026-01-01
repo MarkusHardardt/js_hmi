@@ -1,14 +1,19 @@
 {
+    "staticClientFiles": [],
     "webServerPort": 8080,
     "webSocketPort": 8081,
     "autoConnect": true,
     "serverCycleMillis": 250,
-    "clientRequestAnimationFrameCycle" : 3,
+    "clientRequestAnimationFrameCycle": 3,
     "_secureKeyFile": "./cert/cert.key",
     "_secureCertFile": "./cert/cert.cert",
     "closedConnectionDisposeTimeout": 6000,
     "subscribeDelay": 200,
     "unsubscribeDelay": 5000,
     "sendDelay": 200,
+    "jsonfx_pretty": true,
+    "touch": false,
+    "scrollbar_config": "./ui/scrollbar-desktop.css",
+    "scrollbar_hmi": "./ui/scrollbar-touch.css",
     "simulationCycleMillis": 500
 }

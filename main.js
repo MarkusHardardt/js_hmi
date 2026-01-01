@@ -29,7 +29,6 @@
     const s_verbose_sql_queries = !true;
 
     // load configurations
-    const main_config = require('./main_config.json');
     const db_access = require('./config/db_access.json');
     const db_config = require('./config/db_config.json');
 
@@ -142,7 +141,7 @@
     // we directly replace our icon directory to make sure on server and client
     // (with debug proxy too) our icons will be available
     db_config.icon_dir = '/' + webServer.AddStaticDir(db_config.icon_dir) + '/';
-    db_config.jsonfx_pretty = main_config.jsonfx_pretty === true;
+    db_config.jsonfx_pretty = config.jsonfx_pretty === true;
     hmi.cms = new ContentManager(sqlHelper.createAdapter, db_config);
     // we need access via ajax from clients
     webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
@@ -168,20 +167,94 @@
             webServer.AddStaticFile(file);
         }
     }
-    addStaticFiles(main_config.static_client_files);
-    webServer.AddStaticFile(main_config.touch ? main_config.scrollbar_hmi : main_config.scrollbar_config);
+    addStaticFiles(config.staticClientFiles);
+    webServer.AddStaticFile(config.touch ? config.scrollbar_hmi : config.scrollbar_config);
+
+    const router = new DataPoint.Router();
+    router.GetDataAccessObject = dataId => {
+        const match = /^([a-z0-9_]+):.+$/i.exec(dataId);
+        if (!match) {
+            throw new Error(`Invalid id: '${dataId}'`);
+        } else {
+            switch (match[1]) {
+                case '???':
+                    throw new Error(`Not implemented! '${match[1]}' id: '${dataId}'`);
+                default:
+                    throw new Error(`Invalid prefix '${match[1]}' id: '${dataId}'`);
+            }
+        }
+    };
+    router.IsOperational = true; // TODO: Handle this (but when and how?)
+    hmi.env.data = router;
+
+    const dataConnectors = {};
 
     const tasks = [];
+
+    // Prepare web socket server
+    let webSocketServer = undefined;
+    webServer.Post('/get_web_socket_session_config', 
+        (request, response) => response.send(JSON.stringify(webSocketServer.CreateSessionConfig()))
+    );
+    tasks.push((onSuccess, onError) => {
+        try {
+            webSocketServer = new WebSocketConnection.Server(config.webSocketPort, {
+                secure: webServer.IsSecure,
+                autoConnect: config.autoConnect,
+                closedConnectionDisposeTimeout: config.closedConnectionDisposeTimeout,
+                OnOpen: connection => {
+                    console.log(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    addTestsForServer(connection, testHandlers);
+                    const dataConnector = new DataConnector.ServerConnector();
+                    dataConnector.Parent = router;
+                    dataConnector.Connection = connection;
+                    dataConnector.SendDelay = config.sendDelay;
+                    dataConnector.SubscribeDelay = config.subscribeDelay;
+                    dataConnector.UnsubscribeDelay = config.unsubscribeDelay;
+                    dataConnector.SetDataPoints(watchConfig.dataPoints);
+                    dataConnectors[connection.SessionId] = dataConnector;
+                    dataConnector.OnOpen();
+                },
+                OnReopen: connection => {
+                    console.log(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    const dataConnector = dataConnectors[connection.SessionId];
+                    dataConnector.OnReopen();
+                },
+                OnClose: connection => {
+                    console.log(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    const dataConnector = dataConnectors[connection.SessionId];
+                    dataConnector.OnClose();
+                },
+                OnDispose: connection => {
+                    console.log(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    removeTestsForServer(connection, testHandlers);
+                    const dataConnector = dataConnectors[connection.SessionId];
+                    dataConnector.OnDispose();
+                    delete dataConnectors[connection.SessionId];
+                    dataConnector.Connection = null;
+                    dataConnector.Parent = null;
+                },
+                OnError: (connection, error) => {
+                    console.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}') to server: ${error}`);
+                }
+            });
+            onSuccess();
+        } catch (error) {
+            onError(error);
+        }
+    });
+
     tasks.push((onSuccess, onError) => {
         Server.startRefreshCycle(config.serverCycleMillis, () => ObjectLifecycleManager.refresh(new Date()));
         onSuccess();
     });
-    // finally ...
-    Executor.run(tasks, () => {
-        Object.seal(hmi);
-        // start server if required
-        if (typeof main_config.server.web_server_port === 'number') {
-            webServer.Listen(main_config.server.web_server_port, () => console.log('js hmi web server listening on port: ' + main_config.server.web_server_port));
-        }
-    }, error => console.error(error));
+
+    tasks.push((onSuccess, onError) => {
+        webServer.Listen(config.webServerPort, () => {
+            console.log(`js hmi web server listening on port: ${config.webServerPort}`);
+            onSuccess();
+        });
+    });
+
+    Executor.run(tasks, () => Object.seal(hmi), error => console.error(error));
 }());
