@@ -39,7 +39,7 @@
         let webSocketSessionConfig = undefined;
         // Load web socket session config from server
         tasks.push((onSuccess, onError) => Client.fetch('/get_web_socket_session_config', undefined, response => {
-            webSocketSessionConfig = response;
+            webSocketSessionConfig = JSON.parse(response);
             console.log('Loaded web socket session configuration successfully. Session ID:', webSocketSessionConfig.sessionId);
             onSuccess();
         }, error => {

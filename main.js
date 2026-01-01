@@ -204,14 +204,13 @@
                 closedConnectionDisposeTimeout: config.closedConnectionDisposeTimeout,
                 OnOpen: connection => {
                     console.log(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    addTestsForServer(connection, testHandlers);
                     const dataConnector = new DataConnector.ServerConnector();
                     dataConnector.Parent = router;
                     dataConnector.Connection = connection;
                     dataConnector.SendDelay = config.sendDelay;
                     dataConnector.SubscribeDelay = config.subscribeDelay;
                     dataConnector.UnsubscribeDelay = config.unsubscribeDelay;
-                    dataConnector.SetDataPoints(watchConfig.dataPoints);
+                    // TODO: dataConnector.SetDataPoints(watchConfig.dataPoints);
                     dataConnectors[connection.SessionId] = dataConnector;
                     dataConnector.OnOpen();
                 },
@@ -227,7 +226,6 @@
                 },
                 OnDispose: connection => {
                     console.log(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    removeTestsForServer(connection, testHandlers);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnDispose();
                     delete dataConnectors[connection.SessionId];
