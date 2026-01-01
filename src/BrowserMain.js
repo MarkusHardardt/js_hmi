@@ -1,4 +1,4 @@
-(function () {
+(function (root) {
     "use strict";
 
     // create 'hmi' environment object
@@ -8,22 +8,71 @@
     // here we add our libraries
     hmi.lib = {};
     // load math
-    hmi.lib.math = window.math;
-    hmi.lib.jsonfx = window.jsonfx;
-    hmi.lib.exec = window.Executor;
-    hmi.lib.regex = window.Regex;
+    hmi.lib.math = root.math;
+    hmi.lib.jsonfx = root.jsonfx;
+    hmi.lib.exec = root.Executor;
+    hmi.lib.regex = root.Regex;
     // here all droppables will be stored
     hmi.droppables = {};
 
+    hmi.env = {
+        isInstance: instance => false, // TODO: Implement isInstance(instance)
+        isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
+    };
+
     // add hmi-object-framweork
-    hmi.create = (object, element, onSuccess, onError, initData) => ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
+    hmi.create = (object, element, onSuccess, onError, initData) =>
+        ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
     hmi.destroy = ObjectLifecycleManager.destroy;
-    hmi.showPopup = (config, onSuccess, onError) => ObjectLifecycleManager.showPopup(hmi, config, onSuccess, onError);
-    hmi.showDefaultConfirmationPopup = (config, onSuccess, onError) => ObjectLifecycleManager.showDefaultConfirmationPopup(hmi, config, onSuccess, onError);
+    hmi.showPopup = (config, onSuccess, onError) =>
+        ObjectLifecycleManager.showPopup(hmi, config, onSuccess, onError);
+    hmi.showDefaultConfirmationPopup = (config, onSuccess, onError) =>
+        ObjectLifecycleManager.showDefaultConfirmationPopup(hmi, config, onSuccess, onError);
     // all static files have been loaded and now we create the hmi.
     $(() => {
         const tasks = [];
         tasks.parallel = false;
+
+        const dataConnector = new DataConnector.ClientConnector();
+        hmi.env.data = dataConnector;
+
+        let webSocketSessionConfig = undefined;
+        // Load web socket session config from server
+        tasks.push((onSuccess, onError) => Client.fetch('/get_web_socket_session_config', undefined, response => {
+            webSocketSessionConfig = response;
+            console.log('Loaded web socket session configuration successfully. Session ID:', webSocketSessionConfig.sessionId);
+            onSuccess();
+        }, error => {
+            console.error(`Error loading web socket session configuration: ${error}`);
+            onError(error);
+        }));
+
+        let webSocketConnection = undefined;
+        tasks.push((onSuccess, onError) => {
+            try {
+                webSocketConnection = new WebSocketConnection.ClientConnection(document.location.hostname, webSocketSessionConfig, {
+                    heartbeatInterval: 2000,
+                    heartbeatTimeout: 1000,
+                    reconnectStart: 1000,
+                    reconnectMax: 32000,
+                    OnOpen: () => {
+                        console.log(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(webSocketConnection.SessionId)}')`);
+                        dataConnector.OnOpen();
+                    },
+                    OnClose: () => {
+                        console.log(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(webSocketConnection.SessionId)}')`);
+                        dataConnector.OnClose();
+                    },
+                    OnError: error => {
+                        console.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(webSocketConnection.SessionId)}') to server: ${error}`);
+                    }
+                });
+                dataConnector.Connection = webSocketConnection;
+                onSuccess();
+            } catch (error) {
+                onError(error);
+            }
+        });
         // load client config
         let config = false;
         tasks.push((onSuccess, onError) => {
@@ -51,17 +100,14 @@
         // load hmi
         Executor.run(tasks, () => {
             Object.seal(hmi);
-            var body = $(document.body);
+            const body = $(document.body);
             body.empty();
             body.addClass('hmi-body');
             var object = getContentEditor(hmi);
             hmi.create(object, body, () => console.log('js hmi started'), error => console.error(error));
             body.on('unload', () => {
-                if (clientHandler) {
-                    clientHandler.shutdown();
-                }
                 hmi.destroy(object, () => console.log('js hmi stopped'), error => console.error(error));
             });
         }, error => console.error(error));
     });
-}());
+}(globalThis));

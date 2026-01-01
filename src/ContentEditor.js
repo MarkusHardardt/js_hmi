@@ -1,4 +1,4 @@
-(function () {
+(function (root) {
     "use strict";
 
     const DEFAULT_ROW_HEIGHT = '24px';
@@ -2301,4 +2301,4 @@
     }
 
     window.getContentEditor = getContentEditor;
-}());
+}(globalThis));
