@@ -89,7 +89,7 @@
     function getHandler(desc, lab, htm, txt, jso) {
         if (!desc) {
             return false;
-        } else if (desc.jsonfx) {
+        } else if (desc.JsonFX) {
             return { cont: jso, desc };
         } else if (!desc.multilingual) {
             return { cont: txt, desc };
@@ -1339,7 +1339,7 @@
                     case ContentManager.RAW:
                         container.hmi_removeContent(function () {
                             cms.getObject(data.file, language, ContentManager.RAW, raw => {
-                                let value = raw !== undefined ? jsonfx.stringify(jsonfx.reconstruct(raw), true) : '';
+                                let value = raw !== undefined ? JsonFX.stringify(JsonFX.reconstruct(raw), true) : '';
                                 textarea.value = value;
                                 container.hmi_setContent(textarea, () => {
                                     if (raw !== undefined) {
@@ -1354,7 +1354,7 @@
                     case ContentManager.INCLUDE:
                         container.hmi_removeContent(() => {
                             cms.getObject(data.file, language, ContentManager.INCLUDE, build => {
-                                var value = build !== undefined ? jsonfx.stringify(jsonfx.reconstruct(build), true) : '';
+                                var value = build !== undefined ? JsonFX.stringify(JsonFX.reconstruct(build), true) : '';
                                 textarea.value = value;
                                 container.hmi_setContent(textarea, () => {
                                     if (build !== undefined) {
@@ -1486,8 +1486,8 @@
                     case ContentManager.RAW:
                         container.hmi_removeContent(() => {
                             cms.getObject(data.file, language, ContentManager.RAW, raw => {
-                                raw = raw !== undefined ? jsonfx.reconstruct(raw) : undefined;
-                                textarea.value = raw !== undefined ? jsonfx.stringify(raw, true) : '';
+                                raw = raw !== undefined ? JsonFX.reconstruct(raw) : undefined;
+                                textarea.value = raw !== undefined ? JsonFX.stringify(raw, true) : '';
                                 container.hmi_setContent(textarea, () => {
                                     if (raw !== undefined) {
                                         textarea.file = data.file;
@@ -1502,7 +1502,7 @@
                         container.hmi_removeContent(() => {
                             cms.getObject(data.file, language, ContentManager.RAW, raw => {
                                 if (raw !== undefined) {
-                                    raw = jsonfx.reconstruct(raw);
+                                    raw = JsonFX.reconstruct(raw);
                                     cms.getObject(data.file, language, ContentManager.PARSE, parsed => {
                                         if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
                                             object = parsed;
@@ -1540,7 +1540,7 @@
             code: 'javascript',
             beautify: true,
             editable: true,
-            value: raw !== undefined ? jsonfx.stringify(raw, true) : '',
+            value: raw !== undefined ? JsonFX.stringify(raw, true) : '',
             prepare: (that, onSuccess, onError) => {
                 that._on_change = () => {
                     if (!edited) {
@@ -1581,7 +1581,7 @@
                             classes: 'highlighted-yellow',
                             text: 'enter text here',
                         };
-                        let value = jsonfx.stringify(jsonfx.reconstruct(obj), true);
+                        let value = JsonFX.stringify(JsonFX.reconstruct(obj), true);
                         let src_obj = {
                             x: 0,
                             y: 0,
@@ -1611,13 +1611,13 @@
                                 click: onClose => {
                                     try {
                                         let value = src_obj.hmi_value().trim();
-                                        let object = value.length > 0 ? jsonfx.parse(value, true, true) : undefined;
+                                        let object = value.length > 0 ? JsonFX.parse(value, true, true) : undefined;
                                         if (object !== undefined) {
                                             raw.children[typeof index === 'number' && index >= 0 ? index : raw.children.length] = object;
                                         } else if (typeof index === 'number' && index >= 0) {
                                             raw.children.splice(index, 1);
                                         }
-                                        adapter.performCommit(jsonfx.stringify(raw, false));
+                                        adapter.performCommit(JsonFX.stringify(raw, false));
                                         onClose();
                                     } catch (exc) {
                                         info_obj.hmi_addClass('highlighted-red');
@@ -1662,7 +1662,7 @@
             switch (mode) {
                 case ContentManager.RAW:
                     let value = textarea.hmi_value().trim();
-                    return value.length > 0 ? jsonfx.stringify(jsonfx.parse(value, true, true), false) : '';
+                    return value.length > 0 ? JsonFX.stringify(JsonFX.parse(value, true, true), false) : '';
                 case ContentManager.PARSE:
                     if ((object.type === 'grid' || object.type === 'float') && Array.isArray(raw.children) && Array.isArray(object.children)) {
                         // first we got to update our raw coordinates
@@ -1676,7 +1676,7 @@
                                 raw_child.y = obj_child.y;
                             }
                         }
-                        return jsonfx.stringify(raw, false);
+                        return JsonFX.stringify(raw, false);
                     } else {
                         throw new Error('Invalid hmi-edit-content');
                     }

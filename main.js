@@ -4,7 +4,7 @@
         Client, // direct access: const Client = require('@markus.hardardt/js_utils/src/Client.js');
         Executor, // direct access: const Executor = require('@markus.hardardt/js_utils/src/Executor.js');
         HashLists, // direct access: const HashLists = require('@markus.hardardt/js_utils/src/HashLists.js');
-        jsonfx, // direct access: const jsonfx = require('@markus.hardardt/js_utils/src/jsonfx.js');
+        JsonFX, // direct access: const JsonFX = require('@markus.hardardt/js_utils/src/JsonFX.js');
         math, // direct access: const math = require('@markus.hardardt/js_utils/src/math.js');
         ObjectPositionSystem, // direct access: const ObjectPositionSystem = require('@markus.hardardt/js_utils/src/ObjectPositionSystem.js');
         Regex, // direct access: const Regex = require('@markus.hardardt/js_utils/src/Regex.js');
@@ -45,7 +45,7 @@
     hmi.lib = {};
     // load math
     hmi.lib.math = math;
-    hmi.lib.jsonfx = jsonfx;
+    hmi.lib.JsonFX = JsonFX;
     hmi.lib.exec = Executor;
     hmi.lib.regex = Regex;
     hmi.lib.sql = SqlHelper;

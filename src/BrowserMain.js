@@ -9,7 +9,7 @@
     hmi.lib = {};
     // load math
     hmi.lib.math = root.math;
-    hmi.lib.jsonfx = root.jsonfx;
+    hmi.lib.JsonFX = root.JsonFX;
     hmi.lib.exec = root.Executor;
     hmi.lib.regex = root.Regex;
     // here all droppables will be stored

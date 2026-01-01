@@ -14,7 +14,7 @@
       "name": "jso",
       "extension": "j",
       "key_column": "key",
-      "jsonfx": true,
+      "JsonFX": true,
       "value_column": "value",
       "icon": "jso.gif"
     },
