@@ -170,6 +170,37 @@
     addStaticFiles(config.staticClientFiles);
     webServer.AddStaticFile(config.touch ? config.scrollbar_hmi : config.scrollbar_config);
 
+    // debug stuff start
+    const DataIds = Object.freeze({ b: 'test:b', i: 'test:i', f: 'test:f', t: 'test:t' });
+    const test_subscriptions = {};
+    test_subscriptions[DataIds.b] = { value: false, onRefresh: null };
+    test_subscriptions[DataIds.i] = { value: 0, onRefresh: null };
+    test_subscriptions[DataIds.f] = { value: 1.618, onRefresh: null };
+    test_subscriptions[DataIds.t] = { value: 'hello world', onRefresh: null };
+    const test_dataPoints = {
+        IsOperational: true,
+        SubscribeOperationalState: onOperationalStateChanged => { },
+        UnsubscribeOperationalState: onOperationalStateChanged => { },
+        GetType: dataId => { },
+        SubscribeData: (dataId, onRefresh) => test_subscriptions[dataId].onRefresh = onRefresh,
+        UnsubscribeData: (dataId, onRefresh) => test_subscriptions[dataId].onRefresh = null,
+        Read: (dataId, onResponse, onError) => test_subscriptions[dataId].value,
+        Write: (dataId, value) => setTestValue(dataId, value)
+    };
+    function setTestValue(dataId, value) {
+        test_subscriptions[dataId].value = value;
+        if (test_subscriptions[dataId].onRefresh) {
+            test_subscriptions[dataId].onRefresh(value);
+        }
+    }
+    setInterval(() => {
+        setTestValue(DataIds.b, Math.random() >= 0.5);
+        setTestValue(DataIds.i, test_subscriptions[DataIds.i].value + 1);
+        setTestValue(DataIds.f, Math.random());
+        setTestValue(DataIds.t, `Hello world! ${Math.random()}`);
+    }, 500);
+    // debug stuff end
+
     const router = new DataPoint.Router();
     router.GetDataAccessObject = dataId => {
         const match = /^([a-z0-9_]+):.+$/i.exec(dataId);
@@ -177,8 +208,8 @@
             throw new Error(`Invalid id: '${dataId}'`);
         } else {
             switch (match[1]) {
-                case '???':
-                    throw new Error(`Not implemented! '${match[1]}' id: '${dataId}'`);
+                case 'test':
+                    return test_dataPoints;
                 default:
                     throw new Error(`Invalid prefix '${match[1]}' id: '${dataId}'`);
             }
@@ -193,7 +224,7 @@
 
     // Prepare web socket server
     let webSocketServer = undefined;
-    webServer.Post('/get_web_socket_session_config', 
+    webServer.Post('/get_web_socket_session_config',
         (request, response) => response.send(JSON.stringify(webSocketServer.CreateSessionConfig()))
     );
     tasks.push((onSuccess, onError) => {
@@ -210,7 +241,12 @@
                     dataConnector.SendDelay = config.sendDelay;
                     dataConnector.SubscribeDelay = config.subscribeDelay;
                     dataConnector.UnsubscribeDelay = config.unsubscribeDelay;
-                    // TODO: dataConnector.SetDataPoints(watchConfig.dataPoints);
+                    dataConnector.SetDataPoints([
+                        { id: DataIds.b, type: Core.DataType.Boolean },
+                        { id: DataIds.i, type: Core.DataType.Int64 },
+                        { id: DataIds.f, type: Core.DataType.Double },
+                        { id: DataIds.t, type: Core.DataType.String }
+                    ]);
                     dataConnectors[connection.SessionId] = dataConnector;
                     dataConnector.OnOpen();
                 },
