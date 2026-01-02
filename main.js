@@ -135,15 +135,17 @@
 
     // prepare content management system
     // we need the handler for database access
-    const sqlHelper = new SqlHelper.Connector(db_access, s_verbose_sql_queries);
+    // TODO: reuse or remove    const sqlHelper = new SqlHelper.Connector(db_access, s_verbose_sql_queries);
+    const sqlAdapterFactory = SqlHelper.getAdapterFactory(db_access, s_verbose_sql_queries);
     // we directly replace our icon directory to make sure on server and client
     // (with debug proxy too) our icons will be available
     db_config.icon_dir = '/' + webServer.AddStaticDir(db_config.icon_dir) + '/';
     db_config.jsonfx_pretty = config.jsonfx_pretty === true;
-    hmi.cms = new ContentManager(sqlHelper.createAdapter, db_config);
+    // TODO: reuse or remove hmi.cms = new ContentManager(sqlHelper.createAdapter, db_config);
+    hmi.cms = new ContentManager(sqlAdapterFactory, db_config);
     // we need access via ajax from clients
     webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
-        hmi.cms.handleRequest(request.body,
+        hmi.cms.HandleRequest(request.body,
             result => response.send(JSON.stringify(result)),
             error => response.send(JSON.stringify(error.toString()))
         );
@@ -151,7 +153,7 @@
     // the tree control requests da via 'GET' so we handle those request
     // separately
     webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, (request, response) => {
-        hmi.cms.handleFancyTreeRequest(request.query.request, request.query.path,
+        hmi.cms.HandleFancyTreeRequest(request.query.request, request.query.path,
             result => response.send(JSON.stringify(result)),
             error => response.send(JSON.stringify(error.toString()))
         );

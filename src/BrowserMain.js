@@ -84,7 +84,7 @@
         // prepare content management system
         tasks.push((onSuccess, onError) => hmi.cms = new ContentManager.Proxy(onSuccess, onError));
         tasks.push((onSuccess, onError) => {
-            const languages = hmi.cms.getLanguages();
+            const languages = hmi.cms.GetLanguages();
             if (Array.isArray(languages) && languages.length > 0) {
                 hmi.languages = languages;
                 hmi.language = languages[0];
@@ -100,7 +100,7 @@
             const defaultObject = { text: `view: '${view}' is not available` };
             console.log(`view: '${view}'`);
             if (view) {
-                hmi.cms.getObject(view, hmi.language, ContentManager.PARSE, object => {
+                hmi.cms.GetObject(view, hmi.language, ContentManager.PARSE, object => {
                     if (object !== null && typeof object === 'object' && !Array.isArray(object)) {
                         rootObject = object;
                     } else {
