@@ -82,7 +82,7 @@
             }, onError);
         });
         // prepare content management system
-        tasks.push((onSuccess, onError) => hmi.cms = new ContentManager.Proxy(onSuccess, onError));
+        tasks.push((onSuccess, onError) => hmi.cms = new ContentManager.Instance(onSuccess, onError));
         tasks.push((onSuccess, onError) => {
             const languages = hmi.cms.GetLanguages();
             if (Array.isArray(languages) && languages.length > 0) {

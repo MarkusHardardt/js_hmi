@@ -142,7 +142,7 @@
     db_config.icon_dir = '/' + webServer.AddStaticDir(db_config.icon_dir) + '/';
     db_config.jsonfx_pretty = config.jsonfx_pretty === true;
     // TODO: reuse or remove hmi.cms = new ContentManager(sqlHelper.createAdapter, db_config);
-    hmi.cms = new ContentManager(sqlAdapterFactory, db_config);
+    hmi.cms = new ContentManager.Instance(sqlAdapterFactory, db_config);
     // we need access via ajax from clients
     webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
         hmi.cms.HandleRequest(request.body,
