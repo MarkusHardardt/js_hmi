@@ -115,8 +115,6 @@
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-html.js');
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-css.js');
     addStaticWebServerJsUtilsFiles(webServer);
-    // TODO only in config mode
-    webServer.AddStaticFile('./src/ContentEditor.js');
     // add the final static file: our hmi main loader
     webServer.AddStaticFile('./src/BrowserMain.js');
     // No content - will be generated at runtime inside browser

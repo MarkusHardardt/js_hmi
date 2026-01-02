@@ -109,7 +109,7 @@
                     onSuccess();
                 }, error => rootObject = { text: `Failed loading view: '${view}' because of error: ${error}` });  // TODO: Implement 'better' info object
             } else {
-                rootObject = getContentEditor(hmi);
+                rootObject = ContentEditor.create(hmi);
                 onSuccess();
             }
         });
