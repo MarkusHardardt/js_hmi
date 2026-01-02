@@ -182,7 +182,10 @@
         SubscribeOperationalState: onOperationalStateChanged => { },
         UnsubscribeOperationalState: onOperationalStateChanged => { },
         GetType: dataId => { },
-        SubscribeData: (dataId, onRefresh) => test_subscriptions[dataId].onRefresh = onRefresh,
+        SubscribeData: (dataId, onRefresh) => {
+            test_subscriptions[dataId].onRefresh = onRefresh;
+            onRefresh(test_subscriptions[dataId].value);
+        },
         UnsubscribeData: (dataId, onRefresh) => test_subscriptions[dataId].onRefresh = null,
         Read: (dataId, onResponse, onError) => test_subscriptions[dataId].value,
         Write: (dataId, value) => setTestValue(dataId, value)
@@ -199,6 +202,12 @@
         setTestValue(DataIds.f, Math.random());
         setTestValue(DataIds.t, `Hello world! ${Math.random()}`);
     }, 500);
+    const test_dataPointsCollection = new DataPoint.Collection();
+    test_dataPointsCollection.Parent = test_dataPoints;
+    setTimeout(() => { // TODO: Renove when tested and running
+        test_dataPointsCollection.Parent = null;
+        test_dataPointsCollection.Parent = test_dataPoints;
+    }, 5000)
     // debug stuff end
 
     const router = new DataPoint.Router();
@@ -209,7 +218,7 @@
         } else {
             switch (match[1]) {
                 case 'test':
-                    return test_dataPoints;
+                    return test_dataPointsCollection; // test_dataPoints;
                 default:
                     throw new Error(`Invalid prefix '${match[1]}' id: '${dataId}'`);
             }
