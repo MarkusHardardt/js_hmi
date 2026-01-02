@@ -135,7 +135,7 @@
 
     // prepare content management system
     // we need the handler for database access
-    const sqlHelper = new SqlHelper(db_access, s_verbose_sql_queries);
+    const sqlHelper = new SqlHelper.Instance(db_access, s_verbose_sql_queries);
     // we directly replace our icon directory to make sure on server and client
     // (with debug proxy too) our icons will be available
     db_config.icon_dir = '/' + webServer.AddStaticDir(db_config.icon_dir) + '/';
