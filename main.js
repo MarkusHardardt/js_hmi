@@ -178,9 +178,13 @@
     test_subscriptions[DataIds.f] = { value: 1.618, onRefresh: null };
     test_subscriptions[DataIds.t] = { value: 'hello world', onRefresh: null };
     const test_dataPoints = {
+        onOperationalStateChanged: null,
         IsOperational: true,
-        SubscribeOperationalState: onOperationalStateChanged => { },
-        UnsubscribeOperationalState: onOperationalStateChanged => { },
+        SubscribeOperationalState: onOperationalStateChanged => { 
+            test_dataPoints.onOperationalStateChanged = onOperationalStateChanged;
+            onOperationalStateChanged(true);
+        },
+        UnsubscribeOperationalState: onOperationalStateChanged => test_dataPoints.onOperationalStateChanged = null,
         GetType: dataId => { },
         SubscribeData: (dataId, onRefresh) => {
             test_subscriptions[dataId].onRefresh = onRefresh;
