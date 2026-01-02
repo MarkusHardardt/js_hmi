@@ -93,6 +93,26 @@
                 onError('no languages available');
             }
         });
+        let rootObject = null;
+        tasks.push((onSuccess, onError) => {
+            const params = new URLSearchParams(root.location.search);
+            const view = params.get('view');
+            const defaultObject = { text: `view: '${view}' is not available` };
+            console.log(`view: '${view}'`);
+            if (view) {
+                hmi.cms.getObject(view, hmi.language, ContentManager.PARSE, object => {
+                    if (object !== null && typeof object === 'object' && !Array.isArray(object)) {
+                        rootObject = object;
+                    } else {
+                        rootObject = { text: `view: '${view}' is not a visual object` };
+                    }
+                    onSuccess();
+                }, error => rootObject = { text: `Failed loading view: '${view}' because of error: ${error}` });
+            } else {
+                rootObject = getContentEditor(hmi);
+                onSuccess();
+            }
+        });
         tasks.push((onSuccess, onError) => {
             Client.startRefreshCycle(config.requestAnimationFrameCycle, () => ObjectLifecycleManager.refresh(new Date()));
             onSuccess();
@@ -103,10 +123,9 @@
             const body = $(document.body);
             body.empty();
             body.addClass('hmi-body');
-            var object = getContentEditor(hmi);
-            hmi.create(object, body, () => console.log('js hmi started'), error => console.error(error));
+            hmi.create(rootObject, body, () => console.log('js hmi started'), error => console.error(error));
             body.on('unload', () => {
-                hmi.destroy(object, () => console.log('js hmi stopped'), error => console.error(error));
+                hmi.destroy(rootObject, () => console.log('js hmi stopped'), error => console.error(error));
             });
         }, error => console.error(error));
     });
