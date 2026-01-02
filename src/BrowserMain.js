@@ -104,10 +104,10 @@
                     if (object !== null && typeof object === 'object' && !Array.isArray(object)) {
                         rootObject = object;
                     } else {
-                        rootObject = { text: `view: '${view}' is not a visual object` };
+                        rootObject = { text: `view: '${view}' is not a visual object` }; // TODO: Implement 'better' info object
                     }
                     onSuccess();
-                }, error => rootObject = { text: `Failed loading view: '${view}' because of error: ${error}` });
+                }, error => rootObject = { text: `Failed loading view: '${view}' because of error: ${error}` });  // TODO: Implement 'better' info object
             } else {
                 rootObject = getContentEditor(hmi);
                 onSuccess();
