@@ -96,18 +96,18 @@
         let rootObject = null;
         tasks.push((onSuccess, onError) => {
             const params = new URLSearchParams(root.location.search);
-            const view = params.get('view');
-            const defaultObject = { text: `view: '${view}' is not available` };
-            console.log(`view: '${view}'`);
-            if (view) {
-                hmi.cms.GetObject(view, hmi.language, ContentManager.PARSE, object => {
+            const hmiKey = params.get('hmi');
+            // TODO reuse or remove: const defaultObject = { text: `hmi: '${hmiKey}' is not available` };
+            console.log(`view: '${hmiKey}'`);
+            if (hmiKey) {
+                hmi.cms.GetHMIObject(hmiKey, object => {
                     if (object !== null && typeof object === 'object' && !Array.isArray(object)) {
                         rootObject = object;
                     } else {
-                        rootObject = { text: `view: '${view}' is not a visual object` }; // TODO: Implement 'better' info object
+                        rootObject = { text: `view: '${hmiKey}' is not a visual object` }; // TODO: Implement 'better' info object
                     }
                     onSuccess();
-                }, error => rootObject = { text: `Failed loading view: '${view}' because of error: ${error}` });  // TODO: Implement 'better' info object
+                }, error => rootObject = { text: `Failed loading view: '${hmiKey}' because of error: ${error}` });  // TODO: Implement 'better' info object
             } else {
                 rootObject = ContentEditor.create(hmi);
                 onSuccess();
