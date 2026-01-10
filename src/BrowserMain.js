@@ -98,13 +98,13 @@
             const params = new URLSearchParams(root.location.search);
             const hmiKey = params.get('hmi');
             // TODO reuse or remove: const defaultObject = { text: `hmi: '${hmiKey}' is not available` };
-            console.log(`view: '${hmiKey}'`);
+            // console.log(`view: '${hmiKey}'`);
             if (hmiKey) {
                 hmi.cms.GetHMIObject(hmiKey, object => {
                     if (object !== null && typeof object === 'object' && !Array.isArray(object)) {
                         rootObject = object;
                     } else {
-                        rootObject = { text: `view: '${hmiKey}' is not a visual object` }; // TODO: Implement 'better' info object
+                        rootObject = { text: `view: '${hmiKey}' is not an HMI object` }; // TODO: Implement 'better' info object
                     }
                     onSuccess();
                 }, error => rootObject = { text: `Failed loading view: '${hmiKey}' because of error: ${error}` });  // TODO: Implement 'better' info object

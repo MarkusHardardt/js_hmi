@@ -45,5 +45,10 @@
     "name": "hmi",
     "key_column": "key",
     "url_column": "url"
+  },
+  "exes": {
+    "name": "exe",
+    "key_column": "key",
+    "autostart_column": "autostart"
   }
 }
