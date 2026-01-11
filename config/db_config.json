@@ -11,6 +11,20 @@
   ],
   "tables": [
     {
+      "name": "hmi",
+      "extension": "hmi",
+      "key_column": "key",
+      "value_column": "value",
+      "icon": "hmi.gif"
+    },
+    {
+      "name": "exe",
+      "extension": "exe",
+      "key_column": "key",
+      "value_column": "value",
+      "icon": "exe.gif"
+    },
+    {
       "name": "jso",
       "extension": "j",
       "key_column": "key",
