@@ -129,9 +129,9 @@
     body += '</script>\n';
     webServer.SetBody(body); */
     // deliver main config to client
-    webServer.Post('/get_client_config', (request, response) => response.send(JSON.stringify({
+    webServer.Post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle
-    })));
+    }, false)));
 
     // prepare content management system
     // we need the handler for database access
@@ -146,16 +146,16 @@
     // we need access via ajax from clients
     webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
         hmi.cms.HandleRequest(request.body,
-            result => response.send(JSON.stringify(result)),
-            error => response.send(JSON.stringify(error.toString()))
+            result => response.send(JsonFX.stringify(result, false)),
+            error => response.send(JsonFX.stringify(error.toString(), false))
         );
     });
     // the tree control requests da via 'GET' so we handle those request
     // separately
     webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, (request, response) => {
         hmi.cms.HandleFancyTreeRequest(request.query.request, request.query.path,
-            result => response.send(JSON.stringify(result)),
-            error => response.send(JSON.stringify(error.toString()))
+            result => response.send(JsonFX.stringify(result, false)),
+            error => response.send(JsonFX.stringify(error.toString(), false))
         );
     });
     function addStaticFiles(file) {
@@ -238,7 +238,7 @@
     // Prepare web socket server
     let webSocketServer = undefined;
     webServer.Post('/get_web_socket_session_config',
-        (request, response) => response.send(JSON.stringify(webSocketServer.CreateSessionConfig()))
+        (request, response) => response.send(JsonFX.stringify(webSocketServer.CreateSessionConfig(), false))
     );
     tasks.push((onSuccess, onError) => {
         try {
