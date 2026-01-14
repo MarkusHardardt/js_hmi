@@ -15,50 +15,51 @@
             "name": "hmi",
             "queryParameterValueColumn": "queryParameterValue",
             "valueColumn": "jsonFxObjectKey",
+            "enableColumn": "enable",
             "icon": "hmi.gif",
             "hmis": true
         },
         {
-            "type": "Process",
-            "name": "exe",
+            "type": "Task",
+            "name": "task",
             "valueColumn": "jsonFxObjectKey",
             "autostartColumn": "autostart",
-            "icon": "exe.gif",
+            "icon": "task.gif",
             "exes": true
         },
         {
             "type": "JsonFX",
-            "name": "jso",
+            "name": "jsonfx",
             "extension": "j",
             "keyColumn": "key",
             "valueColumn": "value",
-            "icon": "jso.gif",
+            "icon": "jsonfx.gif",
             "JsonFX": true
         },
         {
             "type": "Text",
-            "name": "txt",
+            "name": "text",
             "extension": "t",
             "keyColumn": "key",
             "valueColumn": "value",
-            "icon": "txt.gif"
+            "icon": "text.gif"
         },
         {
             "type": "Label",
-            "name": "lab",
+            "name": "label",
             "extension": "l",
             "keyColumn": "key",
             "valueColumnPrefix": "value_",
-            "icon": "lab.gif",
+            "icon": "label.gif",
             "multiedit": true
         },
         {
             "type": "HTML",
-            "name": "htm",
+            "name": "html",
             "extension": "h",
             "keyColumn": "key",
             "valueColumnPrefix": "value_",
-            "icon": "htm.gif"
+            "icon": "html.gif"
         }
     ]
 }

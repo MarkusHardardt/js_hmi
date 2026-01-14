@@ -64,7 +64,6 @@
     webServer.SetTitle('js hmi');
     webServer.AddStaticDir('./images', 'images');
     webServer.PrepareFavicon('images/favicon.ico');
-    webServer.AddStaticFile('./ui/hmi_styles.css');
     webServer.AddStaticFile('./node_modules/jquery/dist/' + (minimized ? 'jquery.min.js' : 'jquery.js'));
     webServer.AddStaticFile('./node_modules/jquery-ui-dist/' + (minimized ? 'jquery-ui.min.css' : 'jquery-ui.css'));
     webServer.AddStaticFile('./node_modules/jquery-ui-dist/' + (minimized ? 'jquery-ui.min.js' : 'jquery-ui.js'));
@@ -114,6 +113,8 @@
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify.js');
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-html.js');
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-css.js');
+    // Note: This needs to be added towards the end because it overrides the dark background of dialogues, which is defined by jquery-ui.css.
+    webServer.AddStaticFile('./ui/hmi_styles.css'); 
     addStaticWebServerJsUtilsFiles(webServer);
     // add the final static file: our hmi main loader
     webServer.AddStaticFile('./src/BrowserMain.js');
