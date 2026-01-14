@@ -13,6 +13,7 @@
         {
             "type": "HMI",
             "name": "hmi",
+            "extension": "hmi",
             "queryParameterValueColumn": "queryParameterValue",
             "valueColumn": "jsonFxObjectKey",
             "enableColumn": "enable",
@@ -22,6 +23,7 @@
         {
             "type": "Task",
             "name": "task",
+            "extension": "task",
             "valueColumn": "jsonFxObjectKey",
             "autostartColumn": "autostart",
             "icon": "task.gif",
