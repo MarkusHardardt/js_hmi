@@ -24,6 +24,7 @@
             "type": "Task",
             "name": "task",
             "extension": "task",
+            "keyColumn": "key",
             "valueColumn": "jsonFxObjectKey",
             "autostartColumn": "autostart",
             "icon": "task.gif",
