@@ -25,13 +25,6 @@
         addStaticWebServerJsUtilsFiles
     } = require('@markus.hardardt/js_utils/js_utils.js');
 
-    // debug
-    const s_verbose_sql_queries = !true;
-
-    // load configurations
-    const db_access = require('./config/db_access.json');
-    const db_config = require('./config/db_config.json');
-
     // Determine config file
     var configFile = './config.json';
     if (process.argv.length > 2 && /\.json$/.test(process.argv[2])) {
@@ -136,14 +129,10 @@
 
     // prepare content management system
     // we need the handler for database access
-    // TODO: reuse or remove    const sqlHelper = new SqlHelper.Connector(db_access, s_verbose_sql_queries);
-    const sqlAdapterFactory = SqlHelper.getAdapterFactory(db_access, s_verbose_sql_queries);
-    // we directly replace our icon directory to make sure on server and client
-    // (with debug proxy too) our icons will be available
-    db_config.icon_dir = '/' + webServer.AddStaticDir(db_config.icon_dir) + '/';
-    db_config.jsonfx_pretty = config.jsonfx_pretty === true;
-    // TODO: reuse or remove hmi.cms = new ContentManager(sqlHelper.createAdapter, db_config);
-    hmi.cms = new ContentManager.Instance(sqlAdapterFactory, db_config);
+    const sqlAdapterFactory = SqlHelper.getAdapterFactory();
+    // add directory containing the icons for the configurator
+    const configIconDirectory = webServer.AddStaticDir('./node_modules/@markus.hardardt/js_utils/cfg/icons');
+    hmi.cms = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
     // we need access via ajax from clients
     webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
         hmi.cms.HandleRequest(request.body,

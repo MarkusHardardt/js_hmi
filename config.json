@@ -11,7 +11,6 @@
     "subscribeDelay": 200,
     "unsubscribeDelay": 5000,
     "sendDelay": 200,
-    "jsonfx_pretty": true,
     "touch": false,
     "scrollbar_config": "./ui/scrollbar-desktop.css",
     "scrollbar_hmi": "./ui/scrollbar-touch.css",
