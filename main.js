@@ -107,7 +107,7 @@
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-html.js');
     webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-css.js');
     // Note: This needs to be added towards the end because it overrides the dark background of dialogues, which is defined by jquery-ui.css.
-    webServer.AddStaticFile('./ui/hmi_styles.css'); 
+    webServer.AddStaticFile('./ui/hmi_styles.css');
     addStaticWebServerJsUtilsFiles(webServer);
     // add the final static file: our hmi main loader
     webServer.AddStaticFile('./src/BrowserMain.js');
@@ -136,8 +136,8 @@
     // we need access via ajax from clients
     webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
         hmi.cms.HandleRequest(request.body,
-            result => response.send(JsonFX.stringify(result, false)),
-            error => response.send(JsonFX.stringify(error.toString(), false))
+            result => response.send(JsonFX.stringify({ result }, false)),
+            error => response.send(JsonFX.stringify({ error: error.toString() }, false))
         );
     });
     // the tree control requests da via 'GET' so we handle those request
@@ -170,7 +170,7 @@
     const test_dataPoints = {
         onOperationalStateChanged: null,
         IsOperational: true,
-        SubscribeOperationalState: onOperationalStateChanged => { 
+        SubscribeOperationalState: onOperationalStateChanged => {
             test_dataPoints.onOperationalStateChanged = onOperationalStateChanged;
             onOperationalStateChanged(true);
         },
