@@ -107,7 +107,10 @@
                         rootObject = { text: `view: '${queryParameterValue}' is not an HMI object` }; // TODO: Implement 'better' info object
                     }
                     onSuccess();
-                }, error => rootObject = { text: `Failed loading view: '${queryParameterValue}' because of error: ${error}` });  // TODO: Implement 'better' info object
+                }, error => {
+                    rootObject = { html: `<h1>Failed loading view: '<code>${queryParameterValue}</code>'</h1><br />Error reason: <code>${error}</code>` };
+                    onSuccess();
+                });  
             } else {
                 rootObject = ContentEditor.create(hmi);
                 onSuccess();
