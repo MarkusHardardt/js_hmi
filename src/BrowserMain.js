@@ -100,7 +100,7 @@
             // TODO reuse or remove: const defaultObject = { text: `hmi: '${hmiKey}' is not available` };
             // console.log(`view: '${hmiKey}'`);
             if (queryParameterValue) {
-                hmi.cms.GetHMIObject(queryParameterValue, object => {
+                hmi.cms.GetHMIObject(queryParameterValue, hmi.language, object => {
                     if (object !== null && typeof object === 'object' && !Array.isArray(object)) {
                         rootObject = object;
                     } else {
@@ -108,7 +108,7 @@
                     }
                     onSuccess();
                 }, error => {
-                    rootObject = { html: `<h1>Failed loading view: '<code>${queryParameterValue}</code>'</h1><br />Error reason: <code>${error}</code>` };
+                    rootObject = { html: `<h1>Failed loading HMI: '<code>${queryParameterValue}</code>'</h1><br />Error reason: <code>${error}</code>` };
                     onSuccess();
                 });  
             } else {
