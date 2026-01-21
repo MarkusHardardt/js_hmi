@@ -24,10 +24,10 @@
     hmi.create = (object, element, onSuccess, onError, initData) =>
         ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
     hmi.destroy = ObjectLifecycleManager.destroy;
-    hmi.showPopup = (config, onSuccess, onError) =>
-        ObjectLifecycleManager.showPopup(hmi, config, onSuccess, onError);
-    hmi.showDefaultConfirmationPopup = (config, onSuccess, onError) =>
-        ObjectLifecycleManager.showDefaultConfirmationPopup(hmi, config, onSuccess, onError);
+    hmi.showDialog = (config, onSuccess, onError) =>
+        ObjectLifecycleManager.showDialog(hmi, config, onSuccess, onError);
+    hmi.showDefaultConfirmationDialog = (config, onSuccess, onError) =>
+        ObjectLifecycleManager.showDefaultConfirmationDialog(hmi, config, onSuccess, onError);
     // all static files have been loaded and now we create the hmi.
     $(() => {
         const tasks = [];
