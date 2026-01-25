@@ -20,9 +20,9 @@
         DataPoint, // direct access: const DataPoint = require('@markus.hardardt/js_utils/src/DataPoint.js');
         TargetSystem, // direct access: const TargetSystem = require('@markus.hardardt/js_utils/src/TargetSystem.js');
         WebSocketConnection, // direct access: const WebSocketConnection = require('@markus.hardardt/js_utils/src/WebSocketConnection.js');
-        ContentEditor, // direct access: const ContentEditor = require('@markus.hardardt/js_utils/src/ContentEditor.js');
         TaskManager, // direct access: const TaskManager = require('@markus.hardardt/js_utils/src/TaskManager.js');
         DataConnector, // direct access: const DataConnector = require('@markus.hardardt/js_utils/src/DataConnector.js');
+        ContentEditor, // direct access: const ContentEditor = require('@markus.hardardt/js_utils/src/ContentEditor.js');
         md5, // direct access: const md5 = require('@markus.hardardt/js_utils/ext/md5.js'); // external
         addStaticWebServerJsUtilsFiles
     } = require('@markus.hardardt/js_utils/js_utils.js');
@@ -137,6 +137,7 @@
     hmi.cms = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
     hmi.cms.RegisterOnWebServer(webServer);
     hmi.tasks = TaskManager.getInstance(hmi);
+    hmi.tasks.RegisterOnWebServer(webServer);
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
             for (var i = 0, l = file.length; i < l; i++) {
