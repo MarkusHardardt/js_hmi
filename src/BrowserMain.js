@@ -36,6 +36,9 @@
         const dataConnector = new DataConnector.ClientConnector();
         hmi.env.data = dataConnector;
 
+        const taskManager = TaskManager.getInstance(hmi);
+        hmi.env.tasks = taskManager;
+
         let webSocketSessionConfig = undefined;
         // Load web socket session config from server
         tasks.push((onSuccess, onError) => Client.fetch('/get_web_socket_session_config', undefined, response => {
@@ -57,16 +60,20 @@
                     reconnectMax: 32000,
                     OnOpen: () => {
                         console.log(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(webSocketConnection.SessionId)}')`);
+                        taskManager.OnOpen();
                         dataConnector.OnOpen();
                     },
                     OnClose: () => {
                         console.log(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(webSocketConnection.SessionId)}')`);
+                        taskManager.OnClose();
                         dataConnector.OnClose();
+
                     },
                     OnError: error => {
                         console.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(webSocketConnection.SessionId)}') to server: ${error}`);
                     }
                 });
+                taskManager.Connection = webSocketConnection;
                 dataConnector.Connection = webSocketConnection;
                 onSuccess();
             } catch (error) {
@@ -82,9 +89,9 @@
             }, onError);
         });
         // prepare content management system
-        tasks.push((onSuccess, onError) => hmi.cms = new ContentManager.Instance(onSuccess, onError));
+        tasks.push((onSuccess, onError) => hmi.env.cms = new ContentManager.Instance(onSuccess, onError));
         tasks.push((onSuccess, onError) => {
-            const languages = hmi.cms.GetLanguages();
+            const languages = hmi.env.cms.GetLanguages();
             if (Array.isArray(languages) && languages.length > 0) {
                 hmi.languages = languages;
                 hmi.language = languages[0];
@@ -92,10 +99,6 @@
             } else {
                 onError('no languages available');
             }
-        });
-        tasks.push((onSuccess, onError) => { 
-            hmi.tasks = TaskManager.getInstance(hmi); 
-            hmi.tasks.Initialize(onSuccess, onError);
         });
 
         let rootObject = null;
@@ -105,7 +108,7 @@
             // TODO reuse or remove: const defaultObject = { text: `hmi: '${hmiKey}' is not available` };
             // console.log(`view: '${hmiKey}'`);
             if (queryParameterValue) {
-                hmi.cms.GetHMIObject(queryParameterValue, hmi.language, object => {
+                hmi.env.cms.GetHMIObject(queryParameterValue, hmi.language, object => {
                     if (object !== null && typeof object === 'object' && !Array.isArray(object)) {
                         rootObject = object;
                     } else {

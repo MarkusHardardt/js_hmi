@@ -134,10 +134,10 @@
     const sqlAdapterFactory = SqlHelper.getAdapterFactory();
     // add directory containing the icons for the configurator
     const configIconDirectory = webServer.AddStaticDir('./node_modules/@markus.hardardt/js_utils/cfg/icons');
-    hmi.cms = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
-    hmi.cms.RegisterOnWebServer(webServer);
-    hmi.tasks = TaskManager.getInstance(hmi);
-    hmi.tasks.RegisterOnWebServer(webServer);
+    hmi.env.cms = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
+    hmi.env.cms.RegisterOnWebServer(webServer);
+    hmi.env.tasks = TaskManager.getInstance(hmi);
+    hmi.env.tasks.RegisterOnWebServer(webServer);
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
             for (var i = 0, l = file.length; i < l; i++) {
@@ -276,13 +276,13 @@
         onSuccess();
     });
 
-    tasks.push((onSuccess, onError) => hmi.tasks.Initialize(onSuccess, onError));
+    tasks.push((onSuccess, onError) => hmi.env.tasks.Initialize(onSuccess, onError));
 
-    tasks.push((onSuccess, onError) => hmi.tasks.StartAutorunTasks(onSuccess, onError));
+    tasks.push((onSuccess, onError) => hmi.env.tasks.StartAutorunTasks(onSuccess, onError));
 
     function shutdownTaskManagerAsync() {
         return new Promise((resolve, reject) => {
-            hmi.tasks.Shutdown(() => resolve(), error => {
+            hmi.env.tasks.Shutdown(() => resolve(), error => {
                 console.error(`Failed to shutdown task manager: ${error}`);
                 reject(error);
             });
