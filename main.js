@@ -135,21 +135,7 @@
     // add directory containing the icons for the configurator
     const configIconDirectory = webServer.AddStaticDir('./node_modules/@markus.hardardt/js_utils/cfg/icons');
     hmi.cms = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
-    // we need access via ajax from clients
-    webServer.Post(ContentManager.GET_CONTENT_DATA_URL, (request, response) => {
-        hmi.cms.HandleRequest(request.body,
-            result => response.send(JsonFX.stringify({ result }, false)),
-            error => response.send(JsonFX.stringify({ error: error.toString() }, false))
-        );
-    });
-    // the tree control requests da via 'GET' so we handle those request
-    // separately
-    webServer.Get(ContentManager.GET_CONTENT_TREE_NODES_URL, (request, response) => {
-        hmi.cms.HandleFancyTreeRequest(request.query.request, request.query.path,
-            result => response.send(JsonFX.stringify(result, false)),
-            error => response.send(JsonFX.stringify(error.toString(), false))
-        );
-    });
+    hmi.cms.RegisterOnWebServer(webServer);
     hmi.tasks = TaskManager.getInstance(hmi);
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
