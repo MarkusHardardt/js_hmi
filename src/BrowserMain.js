@@ -132,9 +132,7 @@
             body.empty();
             body.addClass('hmi-body');
             hmi.create(rootObject, body, () => console.log('js hmi started'), error => console.error(error));
-            body.on('unload', () => {
-                hmi.destroy(rootObject, () => console.log('js hmi stopped'), error => console.error(error));
-            });
+            body.on('unload', () => hmi.destroy(rootObject, () => console.log('js hmi stopped'), error => console.error(error)));
         }, error => console.error(error));
     });
 }(globalThis));
