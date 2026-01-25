@@ -137,7 +137,6 @@
     hmi.env.cms = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
     hmi.env.cms.RegisterOnWebServer(webServer);
     hmi.env.tasks = TaskManager.getInstance(hmi);
-    hmi.env.tasks.RegisterOnWebServer(webServer);
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
             for (var i = 0, l = file.length; i < l; i++) {
@@ -220,6 +219,16 @@
     webServer.Post('/get_web_socket_session_config',
         (request, response) => response.send(JsonFX.stringify(webSocketServer.CreateSessionConfig(), false))
     );
+    tasks.push((onSuccess, onError) => {
+        const languages = hmi.env.cms.GetLanguages();
+        if (Array.isArray(languages) && languages.length > 0) {
+            hmi.languages = languages;
+            hmi.language = languages[0];
+            onSuccess();
+        } else {
+            onError('no languages available');
+        }
+    });
     tasks.push((onSuccess, onError) => {
         try {
             webSocketServer = new WebSocketConnection.Server(config.webSocketPort, {
