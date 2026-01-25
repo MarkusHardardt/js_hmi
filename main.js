@@ -150,7 +150,7 @@
             error => response.send(JsonFX.stringify(error.toString(), false))
         );
     });
-    hmi.tasks = new TaskManager.Instance(hmi);
+    hmi.tasks = TaskManager.getInstance(hmi);
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
             for (var i = 0, l = file.length; i < l; i++) {
@@ -291,6 +291,17 @@
 
     tasks.push((onSuccess, onError) => hmi.tasks.Initialize(onSuccess, onError));
 
+    tasks.push((onSuccess, onError) => hmi.tasks.StartAutorunTasks(onSuccess, onError));
+
+    function shutdownTaskManagerAsync() {
+        return new Promise((resolve, reject) => {
+            hmi.tasks.Shutdown(() => resolve(), error => {
+                console.error(`Failed to shutdown task manager: ${error}`);
+                reject(error);
+            });
+        });
+    }
+
     tasks.push((onSuccess, onError) => {
         webServer.Listen(config.webServerPort, () => {
             console.log(`js hmi web server listening on port: ${config.webServerPort}`);
@@ -299,4 +310,27 @@
     });
 
     Executor.run(tasks, () => Object.seal(hmi), error => console.error(error));
+
+    async function cleanupAsync() {
+        console.log("cleaning up ...");
+        await shutdownTaskManagerAsync();
+        // await session.close();
+        // await client.disconnect();
+        console.log("cleanup done");
+    }
+    const cleanup = () => { (async () => await cleanupAsync())(); }
+
+    function cleanUpAndExit() {
+        cleanupAsync().then(() => process.exit(0));
+    }
+
+    process.on("SIGINT", cleanUpAndExit);
+    process.on("SIGTERM", cleanUpAndExit);
+
+    if (false) { // TODO: Remove debug stuff
+        setTimeout(() => {
+            console.log('Trigger debug shutdown');
+            cleanup();
+        }, 5000);
+    }
 }());
