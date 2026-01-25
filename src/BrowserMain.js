@@ -93,6 +93,11 @@
                 onError('no languages available');
             }
         });
+        tasks.push((onSuccess, onError) => { 
+            hmi.tasks = TaskManager.getInstance(hmi); 
+            hmi.tasks.Initialize(onSuccess, onError);
+        });
+
         let rootObject = null;
         tasks.push((onSuccess, onError) => {
             const params = new URLSearchParams(root.location.search);
@@ -110,7 +115,7 @@
                 }, error => {
                     rootObject = { html: `<h1>Failed loading HMI: '<code>${queryParameterValue}</code>'</h1><br />Error reason: <code>${error}</code>` };
                     onSuccess();
-                });  
+                });
             } else {
                 rootObject = ContentEditor.create(hmi);
                 onSuccess();
