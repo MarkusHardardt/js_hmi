@@ -228,6 +228,7 @@
                 closedConnectionDisposeTimeout: config.closedConnectionDisposeTimeout,
                 OnOpen: connection => {
                     console.log(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    hmi.env.tasks.OnOpen(connection);
                     const dataConnector = new DataConnector.ServerConnector();
                     dataConnector.Parent = router;
                     dataConnector.Connection = connection;
@@ -245,16 +246,19 @@
                 },
                 OnReopen: connection => {
                     console.log(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    hmi.env.tasks.OnReopen(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnReopen();
                 },
                 OnClose: connection => {
                     console.log(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    hmi.env.tasks.OnClose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnClose();
                 },
                 OnDispose: connection => {
                     console.log(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    hmi.env.tasks.OnDispose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnDispose();
                     delete dataConnectors[connection.SessionId];
