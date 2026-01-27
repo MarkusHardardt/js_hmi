@@ -112,7 +112,9 @@
     webServer.AddStaticFile('./ui/hmi_styles.css');
     addStaticWebServerJsUtilsFiles(webServer);
     // add the final static file: our hmi main loader
-    webServer.AddStaticFile('./src/BrowserMain.js');
+    // webServer.AddStaticFile('./src/BrowserMain.js');
+    // webServer.AddStaticFile('./node_modules/@markus.hardardt/js_utils/main/BrowserMain.js'); // external
+
     // No content - will be generated at runtime inside browser
     webServer.SetBody('');
 
