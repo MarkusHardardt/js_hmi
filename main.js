@@ -46,7 +46,7 @@
     hmi.lib.sql = SqlHelper;
     // add hmi-object-framweork
     hmi.create = (object, element, onSuccess, onError, initData) => ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
-    hmi.destroy = ObjectLifecycleManager.destroy;
+    hmi.kill = ObjectLifecycleManager.kill;
     hmi.env = {
         isInstance: instance => false, // TODO: Implement isInstance(instance)
         isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
