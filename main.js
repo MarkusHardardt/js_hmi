@@ -191,10 +191,10 @@
         setTestValue(DataIds.t, `Hello world! ${Math.random()}`);
     }, 500);
     const test_dataPointsCollection = new DataPoint.Collection();
-    test_dataPointsCollection.Parent = test_dataPoints;
+    test_dataPointsCollection.Source = test_dataPoints;
     setTimeout(() => { // TODO: Renove when tested and running
-        test_dataPointsCollection.Parent = null;
-        test_dataPointsCollection.Parent = test_dataPoints;
+        test_dataPointsCollection.Source = null;
+        test_dataPointsCollection.Source = test_dataPoints;
     }, 5000)
     // debug stuff end
 
@@ -244,7 +244,7 @@
                     console.log(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
                     hmi.env.tasks.OnOpen(connection);
                     const dataConnector = new DataConnector.ServerConnector();
-                    dataConnector.Parent = router;
+                    dataConnector.Source = router;
                     dataConnector.Connection = connection;
                     dataConnector.SendDelay = config.sendDelay;
                     dataConnector.SubscribeDelay = config.subscribeDelay;
@@ -277,7 +277,7 @@
                     dataConnector.OnDispose();
                     delete dataConnectors[connection.SessionId];
                     dataConnector.Connection = null;
-                    dataConnector.Parent = null;
+                    dataConnector.Source = null;
                 },
                 OnError: (connection, error) => {
                     console.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}') to server: ${error}`);
