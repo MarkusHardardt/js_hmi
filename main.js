@@ -17,12 +17,13 @@
         Common, // direct access: const Common = require('@markus.hardardt/js_utils/src/Common.js');
         ContentManager, // direct access: const ContentManager = require('@markus.hardardt/js_utils/src/ContentManager.js');
         ObjectLifecycleManager, // direct access: const ObjectLifecycleManager = require('@markus.hardardt/js_utils/src/ObjectLifecycleManager.js');
+        DataConnector, // direct access: const DataConnector = require('@markus.hardardt/js_utils/src/DataConnector.js');
         DataPoint, // direct access: const DataPoint = require('@markus.hardardt/js_utils/src/DataPoint.js');
+        LanguageSwitching, // direct access: const LanguageSwitching = require('@markus.hardardt/js_utils/src/LanguageSwitching.js');
         TargetSystem, // direct access: const TargetSystem = require('@markus.hardardt/js_utils/src/TargetSystem.js');
         WebSocketConnection, // direct access: const WebSocketConnection = require('@markus.hardardt/js_utils/src/WebSocketConnection.js');
-        TaskManager, // direct access: const TaskManager = require('@markus.hardardt/js_utils/src/TaskManager.js');
-        DataConnector, // direct access: const DataConnector = require('@markus.hardardt/js_utils/src/DataConnector.js');
         ContentEditor, // direct access: const ContentEditor = require('@markus.hardardt/js_utils/src/ContentEditor.js');
+        TaskManager, // direct access: const TaskManager = require('@markus.hardardt/js_utils/src/TaskManager.js');
         md5, // direct access: const md5 = require('@markus.hardardt/js_utils/ext/md5.js'); // external
         addStaticWebServerJsUtilsFiles
     } = require('@markus.hardardt/js_utils/js_utils.js');
