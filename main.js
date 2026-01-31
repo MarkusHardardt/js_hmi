@@ -141,7 +141,7 @@
     hmi.env.cms = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
     hmi.env.cms.RegisterOnWebServer(webServer);
     hmi.env.tasks = TaskManager.getInstance(hmi);
-    hmi.env.cms.RegisterAffectedTypesListener(ContentManager.DataTableType.Task, hmi.env.tasks.OnTasksChanged);
+    hmi.env.cms.RegisterAffectedTypesListener(ContentManager.DataType.Task, hmi.env.tasks.OnTasksChanged);
 
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
