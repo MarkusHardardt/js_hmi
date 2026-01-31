@@ -129,7 +129,8 @@
     webServer.SetBody(body); */
     // deliver main config to client
     webServer.Post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
-        requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle
+        requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
+        unsubscribeDelay: config.unsubscribeDelay
     }, false)));
 
     // prepare content management system
