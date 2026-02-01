@@ -36,23 +36,17 @@
     const config = require(configFile);
 
     // create 'hmi' environment object
-    const hmi = {}; // TODO: -> "sys"
-    // here we add our libraries
-    hmi.lib = {};
-    // load Mathematics
-    hmi.lib.Mathematics = Mathematics;
-    hmi.lib.JsonFX = JsonFX;
-    hmi.lib.exec = Executor;
-    hmi.lib.regex = Regex;
-    hmi.lib.sql = SqlHelper;
-    // add hmi-object-framweork
-    hmi.create = (object, element, onSuccess, onError, initData) => ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData);
-    hmi.kill = ObjectLifecycleManager.kill;
-    hmi.env = {
-        isInstance: instance => false, // TODO: Implement isInstance(instance)
-        isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
+    const hmi = {
+        // add hmi-object-framweork
+        create: (object, element, onSuccess, onError, initData) =>
+            ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData),
+        kill: ObjectLifecycleManager.kill,
+        // Environment
+        env: {
+            isInstance: instance => false, // TODO: Implement isInstance(instance)
+            isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
+        }
     };
-
     // Prepare web server
     const minimized = true;
     const webServer = new WebServer.Server({ secureKeyFile: config.secureKeyFile, secureCertFile: config.secureCertFile });
@@ -138,10 +132,61 @@
     const sqlAdapterFactory = SqlHelper.getAdapterFactory();
     // add directory containing the icons for the configurator
     const configIconDirectory = webServer.AddStaticDir('./node_modules/@markus.hardardt/js_utils/cfg/icons');
-    hmi.env.cms = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
-    hmi.env.cms.RegisterOnWebServer(webServer);
-    hmi.env.tasks = TaskManager.getInstance(hmi);
-    hmi.env.cms.RegisterAffectedTypesListener(ContentManager.DataType.Task, hmi.env.tasks.OnTasksChanged);
+    const contentManager = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
+    hmi.env.cms = contentManager;
+    contentManager.RegisterOnWebServer(webServer);
+
+    const taskManager = TaskManager.getInstance(hmi);;
+    hmi.env.tasks = taskManager;
+    contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.OnTasksChanged);
+
+    class AccessRouterHandler {
+        constructor() {
+            this._getDataAccessObject = dataId => { // TODO: Implement
+                console.warn(`TODO: Implement getDataAccessObject('${dataId}')`);
+                return {
+                    GetType: dataId => { // TODO: Implement
+                        console.warn(`TODO: Implement GetType('${dataId}')`);
+                        return Core.DataType.Unknown;
+                    },
+                    SubscribeData: (dataId, onRefresh) => { // TODO: Implement
+                        console.warn(`TODO: Implement SubscribeData('${dataId}, onRefresh')`);
+                    },
+                    UnsubscribeData: (dataId, onRefresh) => { // TODO: Implement
+                        console.warn(`TODO: Implement UnsubscribeData('${dataId}, onRefresh')`);
+                    },
+                    Read: (dataId, onResponse, onError) => { // TODO: Implement
+                        console.warn(`TODO: Implement Read('${dataId}, onRefresh')`);
+                    },
+                    Write: (dataId, value) => { // TODO: Implement
+                        console.warn(`TODO: Implement Write('${dataId}, onRefresh')`);
+                    }
+                };
+            };
+        }
+        get GetDataAccessObject() {
+            return this._getDataAccessObject;
+        }
+        GetDataPoints() { // TODO: Implement
+            const DataIds = Object.freeze({ b: 'test:b', i: 'test:i', f: 'test:f', t: 'test:t' });
+            return [ // TODO: remove
+                { id: DataIds.b, type: Core.DataType.Boolean },
+                { id: DataIds.i, type: Core.DataType.Int64 },
+                { id: DataIds.f, type: Core.DataType.Double },
+                { id: DataIds.t, type: Core.DataType.String }
+            ];
+        }
+    }
+    const dataAccessRouterHandler = new AccessRouterHandler();
+    hmi.env.router = dataAccessRouterHandler;
+
+    const dataAccessRouter = new DataPoint.Router();
+    dataAccessRouter.GetDataAccessObject = dataAccessRouterHandler.GetDataAccessObject;
+
+    const dataAccessPoint = new DataPoint.AccessPoint();
+    dataAccessPoint.UnsubscribeDelay = config.unsubscribeDelay;
+    dataAccessPoint.Source = dataAccessRouter; // Use the router as source
+    hmi.env.data = dataAccessPoint; // Enable access from anyhwere
 
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
@@ -156,65 +201,56 @@
     webServer.AddStaticFile(config.touch ? config.scrollbar_hmi : config.scrollbar_config);
 
     // debug stuff start
-    const DataIds = Object.freeze({ b: 'test:b', i: 'test:i', f: 'test:f', t: 'test:t' });
-    const test_subscriptions = {};
-    test_subscriptions[DataIds.b] = { value: false, onRefresh: null };
-    test_subscriptions[DataIds.i] = { value: 0, onRefresh: null };
-    test_subscriptions[DataIds.f] = { value: 1.618, onRefresh: null };
-    test_subscriptions[DataIds.t] = { value: 'hello world', onRefresh: null };
-    const test_dataPoints = {
-        onOperationalStateChanged: null,
-        IsOperational: true,
-        SubscribeOperationalState: onOperationalStateChanged => {
-            test_dataPoints.onOperationalStateChanged = onOperationalStateChanged;
-            onOperationalStateChanged(true);
-        },
-        UnsubscribeOperationalState: onOperationalStateChanged => test_dataPoints.onOperationalStateChanged = null,
-        GetType: dataId => { },
-        SubscribeData: (dataId, onRefresh) => {
-            test_subscriptions[dataId].onRefresh = onRefresh;
-            onRefresh(test_subscriptions[dataId].value);
-        },
-        UnsubscribeData: (dataId, onRefresh) => test_subscriptions[dataId].onRefresh = null,
-        Read: (dataId, onResponse, onError) => test_subscriptions[dataId].value,
-        Write: (dataId, value) => setTestValue(dataId, value)
-    };
-    function setTestValue(dataId, value) {
-        test_subscriptions[dataId].value = value;
-        if (test_subscriptions[dataId].onRefresh) {
-            test_subscriptions[dataId].onRefresh(value);
-        }
-    }
-    setInterval(() => {
-        setTestValue(DataIds.b, Math.random() >= 0.5);
-        setTestValue(DataIds.i, test_subscriptions[DataIds.i].value + 1);
-        setTestValue(DataIds.f, Math.random());
-        setTestValue(DataIds.t, `Hello world! ${Math.random()}`);
-    }, 500);
-    const testDataAccessPoint = new DataPoint.AccessPoint();
-    testDataAccessPoint.Source = test_dataPoints;
-    setTimeout(() => { // TODO: Renove when tested and running
-        testDataAccessPoint.Source = null;
-        testDataAccessPoint.Source = test_dataPoints;
-    }, 5000)
-    // debug stuff end
-
-    const router = new DataPoint.Router();
-    router.GetDataAccessObject = dataId => {
-        const match = /^([a-z0-9_]+):.+$/i.exec(dataId);
-        if (!match) {
-            throw new Error(`Invalid id: '${dataId}'`);
-        } else {
-            switch (match[1]) {
-                case 'test':
-                    return testDataAccessPoint; // test_dataPoints;
-                default:
-                    throw new Error(`Invalid prefix '${match[1]}' id: '${dataId}'`);
+    if (false) {
+        const DataIds = Object.freeze({ b: 'test:b', i: 'test:i', f: 'test:f', t: 'test:t' });
+        const test_subscriptions = {};
+        test_subscriptions[DataIds.b] = { value: false, onRefresh: null };
+        test_subscriptions[DataIds.i] = { value: 0, onRefresh: null };
+        test_subscriptions[DataIds.f] = { value: 1.618, onRefresh: null };
+        test_subscriptions[DataIds.t] = { value: 'hello world', onRefresh: null };
+        const test_dataPoints = {
+            GetType: dataId => { },
+            SubscribeData: (dataId, onRefresh) => {
+                test_subscriptions[dataId].onRefresh = onRefresh;
+                onRefresh(test_subscriptions[dataId].value);
+            },
+            UnsubscribeData: (dataId, onRefresh) => test_subscriptions[dataId].onRefresh = null,
+            Read: (dataId, onResponse, onError) => test_subscriptions[dataId].value,
+            Write: (dataId, value) => setTestValue(dataId, value)
+        };
+        function setTestValue(dataId, value) {
+            test_subscriptions[dataId].value = value;
+            if (test_subscriptions[dataId].onRefresh) {
+                test_subscriptions[dataId].onRefresh(value);
             }
         }
-    };
-    router.IsOperational = true; // TODO: Handle this (but when and how?)
-    hmi.env.data = router;
+        setInterval(() => {
+            setTestValue(DataIds.b, Math.random() >= 0.5);
+            setTestValue(DataIds.i, test_subscriptions[DataIds.i].value + 1);
+            setTestValue(DataIds.f, Math.random());
+            setTestValue(DataIds.t, `Hello world! ${Math.random()}`);
+        }, 500);
+        const testDataAccessPoint = new DataPoint.AccessPoint();
+        testDataAccessPoint.Source = test_dataPoints;
+        setTimeout(() => { // TODO: Renove when tested and running
+            testDataAccessPoint.Source = null;
+            testDataAccessPoint.Source = test_dataPoints;
+        }, 5000)
+        dataAccessRouter.GetDataAccessObject = dataId => { // TODO: Refactor this
+            const match = /^([a-z0-9_]+):.+$/i.exec(dataId);
+            if (!match) {
+                throw new Error(`Invalid id: '${dataId}'`);
+            } else {
+                switch (match[1]) {
+                    case 'test':
+                        return testDataAccessPoint; // test_dataPoints;
+                    default:
+                        throw new Error(`Invalid prefix '${match[1]}' id: '${dataId}'`);
+                }
+            }
+        };
+    }
+    // debug stuff end
 
     const dataConnectors = {};
 
@@ -226,16 +262,6 @@
         (request, response) => response.send(JsonFX.stringify(webSocketServer.CreateSessionConfig(), false))
     );
     tasks.push((onSuccess, onError) => {
-        const languages = hmi.env.cms.GetLanguages();
-        if (Array.isArray(languages) && languages.length > 0) {
-            hmi.languages = languages;
-            hmi.language = languages[0];
-            onSuccess();
-        } else {
-            onError('no languages available');
-        }
-    });
-    tasks.push((onSuccess, onError) => {
         try {
             webSocketServer = new WebSocketConnection.Server(config.webSocketPort, {
                 secure: webServer.IsSecure,
@@ -243,37 +269,38 @@
                 closedConnectionDisposeTimeout: config.closedConnectionDisposeTimeout,
                 OnOpen: connection => {
                     console.log(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    hmi.env.tasks.OnOpen(connection);
+                    taskManager.OnOpen(connection);
                     const dataConnector = new DataConnector.ServerConnector();
-                    dataConnector.Source = router;
+                    dataConnector.Source = dataAccessPoint;
                     dataConnector.Connection = connection;
                     dataConnector.SendDelay = config.sendDelay;
                     dataConnector.SubscribeDelay = config.subscribeDelay;
                     dataConnector.UnsubscribeDelay = config.unsubscribeDelay;
-                    dataConnector.SetDataPoints([
+                    /*dataConnector.SetDataPoints([ // TODO: remove
                         { id: DataIds.b, type: Core.DataType.Boolean },
                         { id: DataIds.i, type: Core.DataType.Int64 },
                         { id: DataIds.f, type: Core.DataType.Double },
                         { id: DataIds.t, type: Core.DataType.String }
-                    ]);
+                    ]);*/
+                    dataConnector.SetDataPoints(dataAccessRouterHandler.GetDataPoints()); // TODO: How to trigger this?
                     dataConnectors[connection.SessionId] = dataConnector;
                     dataConnector.OnOpen();
                 },
                 OnReopen: connection => {
                     console.log(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    hmi.env.tasks.OnReopen(connection);
+                    taskManager.OnReopen(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnReopen();
                 },
                 OnClose: connection => {
                     console.log(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    hmi.env.tasks.OnClose(connection);
+                    taskManager.OnClose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnClose();
                 },
                 OnDispose: connection => {
                     console.log(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    hmi.env.tasks.OnDispose(connection);
+                    taskManager.OnDispose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnDispose();
                     delete dataConnectors[connection.SessionId];
@@ -295,13 +322,13 @@
         onSuccess();
     });
 
-    tasks.push((onSuccess, onError) => hmi.env.tasks.Initialize(onSuccess, onError));
+    tasks.push((onSuccess, onError) => taskManager.Initialize(onSuccess, onError));
 
-    tasks.push((onSuccess, onError) => hmi.env.tasks.StartAutorunTasks(onSuccess, onError));
+    tasks.push((onSuccess, onError) => taskManager.StartAutorunTasks(onSuccess, onError));
 
     function shutdownTaskManagerAsync() {
         return new Promise((resolve, reject) => {
-            hmi.env.tasks.Shutdown(() => resolve(), error => {
+            taskManager.Shutdown(() => resolve(), error => {
                 console.error(`Failed to shutdown task manager: ${error}`);
                 reject(error);
             });
@@ -315,7 +342,10 @@
         });
     });
 
-    Executor.run(tasks, () => Object.seal(hmi), error => console.error(error));
+    Executor.run(tasks, () => {
+        Object.seal(hmi.env);
+        Object.seal(hmi);
+    }, error => console.error(error));
 
     async function cleanupAsync() {
         console.log("cleaning up ...");
