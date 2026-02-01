@@ -191,11 +191,11 @@
         setTestValue(DataIds.f, Math.random());
         setTestValue(DataIds.t, `Hello world! ${Math.random()}`);
     }, 500);
-    const test_dataPointsCollection = new DataPoint.Collection();
-    test_dataPointsCollection.Source = test_dataPoints;
+    const testDataAccessPoint = new DataPoint.AccessPoint();
+    testDataAccessPoint.Source = test_dataPoints;
     setTimeout(() => { // TODO: Renove when tested and running
-        test_dataPointsCollection.Source = null;
-        test_dataPointsCollection.Source = test_dataPoints;
+        testDataAccessPoint.Source = null;
+        testDataAccessPoint.Source = test_dataPoints;
     }, 5000)
     // debug stuff end
 
@@ -207,7 +207,7 @@
         } else {
             switch (match[1]) {
                 case 'test':
-                    return test_dataPointsCollection; // test_dataPoints;
+                    return testDataAccessPoint; // test_dataPoints;
                 default:
                     throw new Error(`Invalid prefix '${match[1]}' id: '${dataId}'`);
             }
