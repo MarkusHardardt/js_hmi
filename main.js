@@ -140,41 +140,111 @@
     hmi.env.tasks = taskManager;
     contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.OnTasksChanged);
 
-    class AccessRouterHandler {
+    const targetIdValidRegex = /^[a-z0-9_]+$/i;
+    const targetIdRegex = /^([a-z0-9_]+):.+$/i;
+    class AccessRouterHandler { // TODO: move to separtate file
         constructor() {
-            this._getDataAccessObject = dataId => { // TODO: Implement
-                console.warn(`TODO: Implement getDataAccessObject('${dataId}')`);
-                return {
-                    GetType: dataId => { // TODO: Implement
-                        console.warn(`TODO: Implement GetType('${dataId}')`);
-                        return Core.DataType.Unknown;
-                    },
-                    SubscribeData: (dataId, onRefresh) => { // TODO: Implement
-                        console.warn(`TODO: Implement SubscribeData('${dataId}, onRefresh')`);
-                    },
-                    UnsubscribeData: (dataId, onRefresh) => { // TODO: Implement
-                        console.warn(`TODO: Implement UnsubscribeData('${dataId}, onRefresh')`);
-                    },
-                    Read: (dataId, onResponse, onError) => { // TODO: Implement
-                        console.warn(`TODO: Implement Read('${dataId}, onRefresh')`);
-                    },
-                    Write: (dataId, value) => { // TODO: Implement
-                        console.warn(`TODO: Implement Write('${dataId}, onRefresh')`);
-                    }
-                };
+            this._dataConnectors = [];
+            this._dataAccesObjects = {};
+            this._getDataAccessObject = dataId => {
+                const match = targetIdRegex.exec(dataId);
+                if (!match) {
+                    throw new Error(`Invalid id: '${dataId}'`);
+                }
+                const targetId = match[1];
+                const accObj = this._dataAccesObjects[targetId];
+                if (!accObj) {
+                    throw new Error(`No data access object registered for target '${targetId}' in data id: '${dataId}'`);
+                }
+                return accObj;
             };
         }
+
+        RegisterDataConnector(dataConnector) {
+            for (const connector in this._dataConnectors) {
+                if (dataConnector === connector) {
+                    console.error('Data connector is already registered');
+                    return;
+                }
+            }
+            this._dataConnectors.push(dataConnector);
+            const dataPoints = this._getDataPoints();
+            dataConnector.SetDataPoints(dataPoints);
+        }
+
+        UnregisterDataConnector(dataConnector) {
+            for (let i = 0; i < this._dataConnectors.length; i++) {
+                if (dataConnector === this._dataConnectors[i]) {
+                    this._dataConnectors.splice(i, 1);
+                    return;
+                }
+            }
+            console.error('Data connector is not registered');
+        }
+
+        RegisterDataAccesObject(targetId, accessObject) {
+            if (typeof targetId !== 'string') {
+                throw new Error(`Invalid target id: '${targetId}'`);
+            } else if (!targetIdValidRegex.test(targetId)) {
+                throw new Error(`Invalid target id format: '${targetId}'`);
+            } else if (this._dataAccesObjects[targetId] !== undefined) {
+                throw new Error(`Target id: '${targetId}' is already registered`);
+            } else {
+                Common.validateAsDataAccessServerObject(accessObject, true);
+                const prefixLength = targetId.length + 1;
+                function getRawDataId(dataId) {
+                    return dataId.substring(prefixLength);
+                }
+                this._dataAccesObjects[targetId] = {
+                    accessObject,
+                    GetType: dataId => accessObject.GetType(getRawDataId(dataId)),
+                    SubscribeData: (dataId, onRefresh) => accessObject.SubscribeData(getRawDataId(dataId), onRefresh),
+                    UnsubscribeData: (dataId, onRefresh) => accessObject.UnsubscribeData(getRawDataId(dataId), onRefresh),
+                    Read: (dataId, onResponse, onError) => accessObject.Read(getRawDataId(dataId), onResponse, onError),
+                    Write: (dataId, value) => accessObject.Write(getRawDataId(dataId), value)
+                }
+                this._updateDataConnectors();
+            }
+        }
+
+        UnregisterDataAccesObject(targetId, accessObject) {
+            if (typeof targetId !== 'string') {
+                throw new Error(`Invalid target id: '${targetId}'`);
+            } else if (!targetIdValidRegex.test(targetId)) {
+                throw new Error(`Invalid target id format: '${targetId}'`);
+            } else if (this._dataAccesObjects[targetId] === undefined) {
+                throw new Error(`Target id '${targetId}' is not registered`);
+            } else if (this._dataAccesObjects[targetId].accessObject !== accessObject) {
+                throw new Error(`Target id '${targetId}' is registered for different data access object`);
+            } else {
+                delete this._dataAccesObjects[targetId];
+                this._updateDataConnectors();
+            }
+        }
+
+        _updateDataConnectors() {
+            const dataPoints = this._getDataPoints();
+            for (const dataConnector of this._dataConnectors) {
+                dataConnector.SetDataPoints(dataPoints, true);
+            }
+        }
+
+        _getDataPoints() {
+            const result = [];
+            for (const targetId in this._dataAccesObjects) {
+                if (this._dataAccesObjects.hasOwnProperty(targetId)) {
+                    const object = this._dataAccesObjects[targetId];
+                    const dataPoints = object.accessObject.GetDataPoints();
+                    for (const dataPoint of dataPoints) {
+                        result.push({ id: `${targetId}:${dataPoint.id}`, type: dataPoint.type });
+                    }
+                }
+            }
+            return result;
+        }
+
         get GetDataAccessObject() {
             return this._getDataAccessObject;
-        }
-        GetDataPoints() { // TODO: Implement
-            const DataIds = Object.freeze({ b: 'test:b', i: 'test:i', f: 'test:f', t: 'test:t' });
-            return [ // TODO: remove
-                { id: DataIds.b, type: Core.DataType.Boolean },
-                { id: DataIds.i, type: Core.DataType.Int64 },
-                { id: DataIds.f, type: Core.DataType.Double },
-                { id: DataIds.t, type: Core.DataType.String }
-            ];
         }
     }
     const dataAccessRouterHandler = new AccessRouterHandler();
@@ -282,21 +352,24 @@
                         { id: DataIds.f, type: Core.DataType.Double },
                         { id: DataIds.t, type: Core.DataType.String }
                     ]);*/
-                    dataConnector.SetDataPoints(dataAccessRouterHandler.GetDataPoints()); // TODO: How to trigger this?
+                    // dataConnector.SetDataPoints(dataAccessRouterHandler.GetDataPoints()); // TODO: How to trigger this?
                     dataConnectors[connection.SessionId] = dataConnector;
                     dataConnector.OnOpen();
+                    dataAccessRouterHandler.RegisterDataConnector(dataConnector);
                 },
                 OnReopen: connection => {
                     console.log(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
                     taskManager.OnReopen(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnReopen();
+                    dataAccessRouterHandler.RegisterDataConnector(dataConnector);
                 },
                 OnClose: connection => {
                     console.log(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
                     taskManager.OnClose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnClose();
+                    dataAccessRouterHandler.UnregisterDataConnector(dataConnector);
                 },
                 OnDispose: connection => {
                     console.log(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
@@ -306,6 +379,7 @@
                     delete dataConnectors[connection.SessionId];
                     dataConnector.Connection = null;
                     dataConnector.Source = null;
+                    // dataAccessRouterHandler.UnregisterDataConnector(dataConnector); // TODO: remove line if really not required
                 },
                 OnError: (connection, error) => {
                     console.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}') to server: ${error}`);
