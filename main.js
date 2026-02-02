@@ -140,114 +140,7 @@
     hmi.env.tasks = taskManager;
     contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.OnTasksChanged);
 
-    const targetIdValidRegex = /^[a-z0-9_]+$/i;
-    const targetIdRegex = /^([a-z0-9_]+):.+$/i;
-    class AccessRouterHandler { // TODO: move to separtate file
-        constructor() {
-            this._dataConnectors = [];
-            this._dataAccesObjects = {};
-            this._getDataAccessObject = dataId => {
-                const match = targetIdRegex.exec(dataId);
-                if (!match) {
-                    throw new Error(`Invalid id: '${dataId}'`);
-                }
-                const targetId = match[1];
-                const accObj = this._dataAccesObjects[targetId];
-                if (!accObj) {
-                    throw new Error(`No data access object registered for target '${targetId}' in data id: '${dataId}'`);
-                }
-                return accObj;
-            };
-        }
-
-        RegisterDataConnector(dataConnector) {
-            for (const connector in this._dataConnectors) {
-                if (dataConnector === connector) {
-                    console.error('Data connector is already registered');
-                    return;
-                }
-            }
-            this._dataConnectors.push(dataConnector);
-            const dataPoints = this._getDataPoints();
-            dataConnector.SetDataPoints(dataPoints);
-        }
-
-        UnregisterDataConnector(dataConnector) {
-            for (let i = 0; i < this._dataConnectors.length; i++) {
-                if (dataConnector === this._dataConnectors[i]) {
-                    this._dataConnectors.splice(i, 1);
-                    return;
-                }
-            }
-            console.error('Data connector is not registered');
-        }
-
-        RegisterDataAccesObject(targetId, accessObject) {
-            if (typeof targetId !== 'string') {
-                throw new Error(`Invalid target id: '${targetId}'`);
-            } else if (!targetIdValidRegex.test(targetId)) {
-                throw new Error(`Invalid target id format: '${targetId}'`);
-            } else if (this._dataAccesObjects[targetId] !== undefined) {
-                throw new Error(`Target id: '${targetId}' is already registered`);
-            } else {
-                Common.validateAsDataAccessServerObject(accessObject, true);
-                const prefixLength = targetId.length + 1;
-                function getRawDataId(dataId) {
-                    return dataId.substring(prefixLength);
-                }
-                this._dataAccesObjects[targetId] = {
-                    accessObject,
-                    GetType: dataId => accessObject.GetType(getRawDataId(dataId)),
-                    SubscribeData: (dataId, onRefresh) => accessObject.SubscribeData(getRawDataId(dataId), onRefresh),
-                    UnsubscribeData: (dataId, onRefresh) => accessObject.UnsubscribeData(getRawDataId(dataId), onRefresh),
-                    Read: (dataId, onResponse, onError) => accessObject.Read(getRawDataId(dataId), onResponse, onError),
-                    Write: (dataId, value) => accessObject.Write(getRawDataId(dataId), value)
-                }
-                this._updateDataConnectors();
-            }
-        }
-
-        UnregisterDataAccesObject(targetId, accessObject) {
-            if (typeof targetId !== 'string') {
-                throw new Error(`Invalid target id: '${targetId}'`);
-            } else if (!targetIdValidRegex.test(targetId)) {
-                throw new Error(`Invalid target id format: '${targetId}'`);
-            } else if (this._dataAccesObjects[targetId] === undefined) {
-                throw new Error(`Target id '${targetId}' is not registered`);
-            } else if (this._dataAccesObjects[targetId].accessObject !== accessObject) {
-                throw new Error(`Target id '${targetId}' is registered for different data access object`);
-            } else {
-                delete this._dataAccesObjects[targetId];
-                this._updateDataConnectors();
-            }
-        }
-
-        _updateDataConnectors() {
-            const dataPoints = this._getDataPoints();
-            for (const dataConnector of this._dataConnectors) {
-                dataConnector.SetDataPoints(dataPoints, true);
-            }
-        }
-
-        _getDataPoints() {
-            const result = [];
-            for (const targetId in this._dataAccesObjects) {
-                if (this._dataAccesObjects.hasOwnProperty(targetId)) {
-                    const object = this._dataAccesObjects[targetId];
-                    const dataPoints = object.accessObject.GetDataPoints();
-                    for (const dataPoint of dataPoints) {
-                        result.push({ id: `${targetId}:${dataPoint.id}`, type: dataPoint.type });
-                    }
-                }
-            }
-            return result;
-        }
-
-        get GetDataAccessObject() {
-            return this._getDataAccessObject;
-        }
-    }
-    const dataAccessRouterHandler = new AccessRouterHandler();
+    const dataAccessRouterHandler = new DataPoint.AccessRouterHandler();
     hmi.env.router = dataAccessRouterHandler;
 
     const dataAccessRouter = new DataPoint.Router();
@@ -269,58 +162,6 @@
     }
     addStaticFiles(config.staticClientFiles);
     webServer.AddStaticFile(config.touch ? config.scrollbar_hmi : config.scrollbar_config);
-
-    // debug stuff start
-    if (false) {
-        const DataIds = Object.freeze({ b: 'test:b', i: 'test:i', f: 'test:f', t: 'test:t' });
-        const test_subscriptions = {};
-        test_subscriptions[DataIds.b] = { value: false, onRefresh: null };
-        test_subscriptions[DataIds.i] = { value: 0, onRefresh: null };
-        test_subscriptions[DataIds.f] = { value: 1.618, onRefresh: null };
-        test_subscriptions[DataIds.t] = { value: 'hello world', onRefresh: null };
-        const test_dataPoints = {
-            GetType: dataId => { },
-            SubscribeData: (dataId, onRefresh) => {
-                test_subscriptions[dataId].onRefresh = onRefresh;
-                onRefresh(test_subscriptions[dataId].value);
-            },
-            UnsubscribeData: (dataId, onRefresh) => test_subscriptions[dataId].onRefresh = null,
-            Read: (dataId, onResponse, onError) => test_subscriptions[dataId].value,
-            Write: (dataId, value) => setTestValue(dataId, value)
-        };
-        function setTestValue(dataId, value) {
-            test_subscriptions[dataId].value = value;
-            if (test_subscriptions[dataId].onRefresh) {
-                test_subscriptions[dataId].onRefresh(value);
-            }
-        }
-        setInterval(() => {
-            setTestValue(DataIds.b, Math.random() >= 0.5);
-            setTestValue(DataIds.i, test_subscriptions[DataIds.i].value + 1);
-            setTestValue(DataIds.f, Math.random());
-            setTestValue(DataIds.t, `Hello world! ${Math.random()}`);
-        }, 500);
-        const testDataAccessPoint = new DataPoint.AccessPoint();
-        testDataAccessPoint.Source = test_dataPoints;
-        setTimeout(() => { // TODO: Renove when tested and running
-            testDataAccessPoint.Source = null;
-            testDataAccessPoint.Source = test_dataPoints;
-        }, 5000)
-        dataAccessRouter.GetDataAccessObject = dataId => { // TODO: Refactor this
-            const match = /^([a-z0-9_]+):.+$/i.exec(dataId);
-            if (!match) {
-                throw new Error(`Invalid id: '${dataId}'`);
-            } else {
-                switch (match[1]) {
-                    case 'test':
-                        return testDataAccessPoint; // test_dataPoints;
-                    default:
-                        throw new Error(`Invalid prefix '${match[1]}' id: '${dataId}'`);
-                }
-            }
-        };
-    }
-    // debug stuff end
 
     const dataConnectors = {};
 
@@ -346,13 +187,6 @@
                     dataConnector.SendDelay = config.sendDelay;
                     dataConnector.SubscribeDelay = config.subscribeDelay;
                     dataConnector.UnsubscribeDelay = config.unsubscribeDelay;
-                    /*dataConnector.SetDataPoints([ // TODO: remove
-                        { id: DataIds.b, type: Core.DataType.Boolean },
-                        { id: DataIds.i, type: Core.DataType.Int64 },
-                        { id: DataIds.f, type: Core.DataType.Double },
-                        { id: DataIds.t, type: Core.DataType.String }
-                    ]);*/
-                    // dataConnector.SetDataPoints(dataAccessRouterHandler.GetDataPoints()); // TODO: How to trigger this?
                     dataConnectors[connection.SessionId] = dataConnector;
                     dataConnector.OnOpen();
                     dataAccessRouterHandler.RegisterDataConnector(dataConnector);
@@ -379,7 +213,6 @@
                     delete dataConnectors[connection.SessionId];
                     dataConnector.Connection = null;
                     dataConnector.Source = null;
-                    // dataAccessRouterHandler.UnregisterDataConnector(dataConnector); // TODO: remove line if really not required
                 },
                 OnError: (connection, error) => {
                     console.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}') to server: ${error}`);
