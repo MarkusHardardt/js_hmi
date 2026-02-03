@@ -27,6 +27,9 @@
         md5, // direct access: const md5 = require('@markus.hardardt/js_utils/ext/md5.js'); // external
         addStaticWebServerJsUtilsFiles
     } = require('@markus.hardardt/js_utils/js_utils.js');
+    const OPCUA = require('./src/OPCUA.js');
+    const fs = require('fs');
+    const xlsx = require('xlsx');
 
     // Determine config file
     let configFile = './config.json';
@@ -45,7 +48,8 @@
         env: {
             isInstance: instance => false, // TODO: Implement isInstance(instance)
             isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
-        }
+        },
+        ext: { OPCUA, fs, xlsx }
     };
     // Prepare web server
     const minimized = true;

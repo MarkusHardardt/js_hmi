@@ -1,0 +1,8 @@
+lifebit_state;"ALS"."LIFEBIT"."State"
+lifebit_command;"ALS"."LIFEBIT"."Command"
+as_hzw_betriebsart_state;"ALS"."BETAR"."STA"."BETAR"
+as_hzw_betriebsart_command;"ALS"."BETAR"."CMD"."BETAR"
+ls_hzw_betriebsart_state;"ALS"."AB"."LSTE_HZW"."State"
+ls_hzw_betriebsart_command;"ALS"."AB"."LSTE_HZW"."Command"
+ls_nzo_betriebsart_state;"ALS"."AB"."LSTE_NZO"."State"
+ls_nzo_betriebsart_command;"ALS"."AB"."LSTE_HZW"."Command"

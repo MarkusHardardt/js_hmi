@@ -16,6 +16,8 @@
     "jquery": "^3.7.1",
     "jquery-ui-dist": "^1.13.3",
     "jquery.fancytree": "^2.38.5",
-    "js-beautify": "^1.15.4"
+    "js-beautify": "^1.15.4",
+    "node-opcua-client": "^2.161.0",
+    "xlsx": "^0.18.5"
   }
 }
