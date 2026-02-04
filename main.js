@@ -19,10 +19,9 @@
         ObjectLifecycleManager, // direct access: const ObjectLifecycleManager = require('@markus.hardardt/js_utils/src/ObjectLifecycleManager.js');
         DataConnector, // direct access: const DataConnector = require('@markus.hardardt/js_utils/src/DataConnector.js');
         DataPoint, // direct access: const DataPoint = require('@markus.hardardt/js_utils/src/DataPoint.js');
-        LanguageSwitching, // direct access: const LanguageSwitching = require('@markus.hardardt/js_utils/src/LanguageSwitching.js');
-        TargetSystem, // direct access: const TargetSystem = require('@markus.hardardt/js_utils/src/TargetSystem.js');
         WebSocketConnection, // direct access: const WebSocketConnection = require('@markus.hardardt/js_utils/src/WebSocketConnection.js');
         ContentEditor, // direct access: const ContentEditor = require('@markus.hardardt/js_utils/src/ContentEditor.js');
+        LanguageSwitching, // direct access: const LanguageSwitching = require('@markus.hardardt/js_utils/src/LanguageSwitching.js');
         TaskManager, // direct access: const TaskManager = require('@markus.hardardt/js_utils/src/TaskManager.js');
         md5, // direct access: const md5 = require('@markus.hardardt/js_utils/ext/md5.js'); // external
         addStaticWebServerJsUtilsFiles
@@ -44,18 +43,40 @@
         create: (object, element, onSuccess, onError, initData) =>
             ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData),
         kill: ObjectLifecycleManager.kill,
+        utils: {
+            Executor,
+            HashLists,
+            JsonFX,
+            Mathematics,
+            Regex,
+            Server,
+            Sorting,
+            SqlHelper,
+            Utilities,
+            Core,
+            Common,
+            ContentManager,
+            ObjectLifecycleManager,
+            DataPoint,
+            ContentEditor,
+            md5
+        },
         // Environment
         env: {
             isInstance: instance => false, // TODO: Implement isInstance(instance)
             isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
         },
-        ext: { OPCUA, fs, xlsx }
+        ext: {
+            OPCUA,
+            fs,
+            xlsx
+        }
     };
     // Prepare web server
     const minimized = true;
     const webServer = new WebServer.Server({ secureKeyFile: config.secureKeyFile, secureCertFile: config.secureCertFile });
     webServer.RandomFileIdEnabled = false;
-    webServer.SetTitle('js hmi');
+    webServer.SetTitle('js_hmi');
     webServer.AddStaticDir('./images', 'images');
     webServer.PrepareFavicon('images/favicon.ico');
     webServer.AddStaticFile('./node_modules/jquery/dist/' + (minimized ? 'jquery.min.js' : 'jquery.js'));
@@ -110,51 +131,37 @@
     // Note: This needs to be added towards the end because it overrides the dark background of dialogues, which is defined by jquery-ui.css.
     webServer.AddStaticFile('./ui/hmi_styles.css');
     addStaticWebServerJsUtilsFiles(webServer);
-    // add the final static file: our hmi main loader
-    // webServer.AddStaticFile('./src/BrowserMain.js');
-    // webServer.AddStaticFile('./node_modules/@markus.hardardt/js_utils/main/BrowserMain.js'); // external
-
     // No content - will be generated at runtime inside browser
     webServer.SetBody('');
-
-    /* let body = ''; // TODO Handle CodeMirror v5 -> v6 issues
-    body += '<script type="module">\n';
-    body += 'import { attachBrowserFeatures } from "./src/Client.js";\n';
-    body += 'import "./src/ObjectLifecycleManager.js";\n';
-    body += 'attachBrowserFeatures(window.ObjectLifecycleManager);\n';
-    //body += 'const olm = new ObjectLifecycleManager();\n';
-    body += '</script>\n';
-    webServer.SetBody(body); */
     // deliver main config to client
     webServer.Post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
         unsubscribeDelay: config.unsubscribeDelay
     }, false)));
-
     // prepare content management system
     // we need the handler for database access
     const sqlAdapterFactory = SqlHelper.getAdapterFactory();
-    // add directory containing the icons for the configurator
+    // Setting up content manager and add directory containing the icons for the configurator
     const configIconDirectory = webServer.AddStaticDir('./node_modules/@markus.hardardt/js_utils/cfg/icons');
     const contentManager = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
     hmi.env.cms = contentManager;
     contentManager.RegisterOnWebServer(webServer);
-
+    // Setting up task manager
     const taskManager = TaskManager.getInstance(hmi);;
     hmi.env.tasks = taskManager;
     contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.OnTasksChanged);
-
+    // Setting up
     const dataAccessRouterHandler = new DataPoint.AccessRouterHandler();
     hmi.env.router = dataAccessRouterHandler;
-
+    // Setting up
     const dataAccessRouter = new DataPoint.Router();
     dataAccessRouter.GetDataAccessObject = dataAccessRouterHandler.GetDataAccessObject;
-
+    // Setting up
     const dataAccessPoint = new DataPoint.AccessPoint();
     dataAccessPoint.UnsubscribeDelay = config.unsubscribeDelay;
     dataAccessPoint.Source = dataAccessRouter; // Use the router as source
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
-
+    // Add static finels
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
             for (var i = 0, l = file.length; i < l; i++) {
@@ -167,11 +174,17 @@
     addStaticFiles(config.staticClientFiles);
     webServer.AddStaticFile(config.touch ? config.scrollbar_hmi : config.scrollbar_config);
 
-    const dataConnectors = {};
+    // Freeze the hmi object and it's content
+    Object.freeze(hmi.utils);
+    Object.freeze(hmi.env);
+    Object.freeze(hmi.ext);
+    Object.freeze(hmi);
 
+    // Here we store the tasks to be executed as a sequence in order to start the server environment.
     const tasks = [];
 
     // Prepare web socket server
+    const dataConnectors = {};
     let webSocketServer = undefined;
     webServer.Post('/get_web_socket_session_config',
         (request, response) => response.send(JsonFX.stringify(webSocketServer.CreateSessionConfig(), false))
@@ -228,7 +241,7 @@
         }
     });
 
-    tasks.push((onSuccess, onError) => {
+    tasks.push((onSuccess, onError) => { // TODO: Replace with individual task cycles
         Server.startRefreshCycle(config.serverCycleMillis, () => ObjectLifecycleManager.refresh(new Date()));
         onSuccess();
     });
@@ -236,6 +249,15 @@
     tasks.push((onSuccess, onError) => taskManager.Initialize(onSuccess, onError));
 
     tasks.push((onSuccess, onError) => taskManager.StartAutorunTasks(onSuccess, onError));
+
+    tasks.push((onSuccess, onError) => {
+        webServer.Listen(config.webServerPort, () => {
+            console.log(`js_hmi web server listening on port: ${config.webServerPort}`);
+            onSuccess();
+        });
+    });
+
+    Executor.run(tasks, () => console.log('js_hmi runnning'), error => console.error(error));
 
     function shutdownTaskManagerAsync() {
         return new Promise((resolve, reject) => {
@@ -246,23 +268,9 @@
         });
     }
 
-    tasks.push((onSuccess, onError) => {
-        webServer.Listen(config.webServerPort, () => {
-            console.log(`js hmi web server listening on port: ${config.webServerPort}`);
-            onSuccess();
-        });
-    });
-
-    Executor.run(tasks, () => {
-        Object.seal(hmi.env);
-        Object.seal(hmi);
-    }, error => console.error(error));
-
     async function cleanupAsync() {
         console.log("cleaning up ...");
         await shutdownTaskManagerAsync();
-        // await session.close();
-        // await client.disconnect();
         console.log("cleanup done");
     }
     const cleanup = () => { (async () => await cleanupAsync())(); }
