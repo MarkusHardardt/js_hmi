@@ -9,7 +9,7 @@
     "_secureCertFile": "./cert/cert.cert",
     "closedConnectionDisposeTimeout": 6000,
     "subscribeDelay": 200,
-    "unsubscribeDelay": 5000,
+    "unsubscribeDelay": 1000,
     "sendDelay": 200,
     "touch": false,
     "scrollbar_config": "./ui/scrollbar-desktop.css",
