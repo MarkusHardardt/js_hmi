@@ -85,8 +85,17 @@
     async function startOpcuaClientAsync(client, endpointUrl, nodes) {
         try {
             console.log(`Connecting OPC UC client to endpointUrl: ${endpointUrl}`);
-            await client.connect(endpointUrl);
-
+            while (true) {
+                try {
+                    console.log('Trying to connect...');
+                    await client.connect(endpointUrl);
+                    console.log('Connected!');
+                    break;
+                } catch (error) {
+                    console.log('Server not available, retrying in 3s...');
+                    await new Promise(r => setTimeout(r, 3000));
+                }
+            }
             const session = await client.createSession();
             console.log('Successfully connected!');
 
@@ -160,6 +169,56 @@
         }
     }
 
+    async function updateMonitoredItems(subscription, toRemove, toAdd) {
+        /* ChatGPT generated:
+        await Promise.all(toRemove.map(id => {
+            const mi = activeItems.get(id);
+            activeItems.delete(id);
+            return mi.terminate();
+        }));
+
+        await Promise.all(toAdd.map(async id => {
+            const mi = await subscription.monitor(...);
+            activeItems.set(id, mi);
+        })); */
+        await Promise.allSettled(toRemove.map(node => {
+            node.monitoredItem.terminate().then(() => {
+                console.log(`Un-monitored id '${node.dataId}'`);
+            }).catch(error => {
+                console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
+            });
+        }));
+
+        await Promise.allSettled(toAdd.map(async node => {
+            await subscription.monitor(
+                {
+                    nodeId: node.nodeId,
+                    attributeId: AttributeIds.Value
+                },
+                {
+                    samplingInterval: 500,  // ms
+                    discardOldest: true,
+                    queueSize: 10
+                },
+                TimestampsToReturn.Both
+            ).then(monitoredItem => {
+                console.log(`Monitored id '${node.dataId}'`);
+                node.monitoredItem = monitoredItem;
+                monitoredItem.on('changed', dataValue => {
+                    const value = dataValue.value.value;
+                    console.log(`Value changed: ${value}`);
+                    try {
+                        node.onRefresh(value);
+                    } catch (error) {
+                        console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
+                    }
+                });
+            }).catch(error => console.error(`Failed to monitor '${node.dataId}': ${error.message}`));
+        }));
+    }
+
+    const UPDATE_MONITORING_DELAY = 200;
+
     class Client {
         constructor(endpointUrl, namespace, nodesConfig) {
             this._endpointUrl = endpointUrl;
@@ -172,11 +231,19 @@
                     this._nodes[dataId] = { dataId, rawNodeId, accessString, nodeId, value: null, onRefresh: null };
                 }
             }
-            this._client = OPCUAClient.create({ endpointMustExist: true });
+            this._client = OPCUAClient.create({
+                endpointMustExist: false,
+                connectionStrategy: {
+                    initialDelay: 1000,
+                    maxRetry: -1       // infinite retry AFTER first connection
+                }
+            });
             this._session = null;
+            this._updateMonitoringTimer = null;
+            this._monitoredItems = {};
         }
 
-        Initialize(onSuccess, onError) {
+        Initialize(onSuccess, onError) { // TODO: This must noch be called in build, apply, prepare or start because of connecting attemts at startup
             const tasks = [];
             tasks.push((onSuc, onErr) => startOpcuaClientAsync(this._client, this._endpointUrl, this._nodes).then(session => {
                 this._session = session;
@@ -227,30 +294,13 @@
                 console.error(`Node with data id: '${dataId}' is already subscribed with same onRefresh(value) callback`);
             } else {
                 node.onRefresh = onRefresh;
-                /*
-                node.monitoredItem = this._subscription.monitor(
-                    {
-                        nodeId: node.nodeId,
-                        attributeId: AttributeIds.Value
-                    },
-                    {
-                        samplingInterval: 500,  // ms
-                        discardOldest: true,
-                        queueSize: 10
-                    },
-                    TimestampsToReturn.Both
-                );
-                node.monitoredItem.on('changed', dataValue => {
-                    const value = dataValue.value.value;
-                    console.log(`Value changed: ${value}`);
-                    try {
-                        node.onRefresh(value);
-                    } catch (error) {
-                        console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
-                    }
-                });
-                */
-                this._subscription.monitor(
+                if (!this._updateMonitoringTimer) {
+                    this._updateMonitoringTimer = setTimeout(() => {
+                        this._updateMonitoringTimer = null;
+                        this._updateMonitoring();
+                    }, UPDATE_MONITORING_DELAY);
+                }
+                /* this._subscription.monitor(
                     {
                         nodeId: node.nodeId,
                         attributeId: AttributeIds.Value
@@ -273,7 +323,7 @@
                             console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
                         }
                     });
-                }).catch(error => console.error(`Failed to monitor '${node.dataId}': ${error.message}`));
+                }).catch(error => console.error(`Failed to monitor '${node.dataId}': ${error.message}`)); */
             }
         }
 
@@ -285,12 +335,41 @@
                 console.error(`Node with data id: '${dataId}' is not subscribed with passed onRefresh(value) callback`);
             } else {
                 node.onRefresh = null;
-                if (node.monitoredItem) {
-                    node.monitoredItem.terminate().then(() => {
-                        console.log(`Un-monitored id '${node.dataId}'`);
-                    }).catch(error => console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`));
+                if (!this._updateMonitoringTimer) {
+                    this._updateMonitoringTimer = setTimeout(() => {
+                        this._updateMonitoringTimer = null;
+                        this._updateMonitoring();
+                    }, UPDATE_MONITORING_DELAY);
+                }
+                /* if (node.monitoredItem) {
+                    node.monitoredItem.terminate().then(() => console.log(`Un-monitored id '${node.dataId}'`)).catch(error => console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`));
+                } */
+            }
+        }
+
+        _updateMonitoring() {
+            const toAdd = [], toRemove = [];
+            for (const dataId in this._nodes) {
+                if (this._nodes.hasOwnProperty(dataId)) {
+                    const node = this._nodes[dataId];
+                    if (node.onRefresh) {
+                        if (this._monitoredItems[dataId] === undefined) {
+                            this._monitoredItems[dataId] = true;
+                            toAdd.push(node);
+                        }
+                    } else {
+                        if (this._monitoredItems[dataId] === true) {
+                            delete this._monitoredItems[dataId];
+                            toRemove.push(node);
+                        }
+                    }
                 }
             }
+            updateMonitoredItems(this._subscription, toRemove, toAdd).then(() => {
+                console.log('Updated monitoring');
+            }).catch(error => {
+                conmsole.error(`Failed updating monitoring: ${error.message}`);
+            });
         }
 
         Read(dataId, onResponse, onError) {
