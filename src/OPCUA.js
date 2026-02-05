@@ -142,33 +142,6 @@
         }
     }
 
-    async function readNodeAsync(session, nodeId) {
-        try {
-            const dataValue = await session.read({
-                nodeId,
-                attributeId: AttributeIds.Value
-            });
-            if (dataValue.statusCode.name === 'Good') {
-                return dataValue.value.value;
-            } else {
-                console.error(`⚠️  NodeId ${nodeId} exists, but status: ${dataValue.statusCode.name}`);
-            }
-        } catch (error) {
-            console.error(`❌ NodeId ${nodeId} could not be read: ${error.message}`);
-        }
-    }
-
-    async function writeNodeAsync(session, accessString, dataType, value) {
-        try {
-            await session.writeSingleNode(
-                accessString,
-                { dataType, value }
-            );
-        } catch (error) {
-            console.error(`❌ NodeId ${accessString} could not be written: ${error.message}`);
-        }
-    }
-
     async function updateMonitoredItems(subscription, toRemove, toAdd) {
         /* ChatGPT generated:
         await Promise.all(toRemove.map(id => {
@@ -188,6 +161,8 @@
                 console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
             });
         }));
+        console.log(`un-monitored ${toRemove.length} items`);
+        toRemove.splice(0, toRemove.length);
 
         await Promise.allSettled(toAdd.map(async node => {
             await subscription.monitor(
@@ -215,9 +190,17 @@
                 });
             }).catch(error => console.error(`Failed to monitor '${node.dataId}': ${error.message}`));
         }));
+        console.log(`monitored ${toAdd.length} items`);
+        toAdd.splice(0, toAdd.length);
     }
 
     const UPDATE_MONITORING_DELAY = 200;
+
+    const ClientState = Object.freeze({
+        Idle: 0,
+        Connect: 1,
+        WaitForConnection: 2
+    });
 
     class Client {
         constructor(endpointUrl, namespace, nodesConfig) {
@@ -232,7 +215,7 @@
                 }
             }
             this._client = OPCUAClient.create({
-                endpointMustExist: false,
+                endpointMustExist: false, // Do NOT cache and pin the endpoint description from the first successful connection.
                 connectionStrategy: {
                     initialDelay: 1000,
                     maxRetry: -1       // infinite retry AFTER first connection
@@ -241,6 +224,32 @@
             this._session = null;
             this._updateMonitoringTimer = null;
             this._monitoredItems = {};
+            this._state = ClientState.Idle;
+        }
+
+        Start() {
+            this._state = ClientState.Connect;
+        }
+
+        Run() {
+            switch (this._state) {
+                case ClientState.Connect:
+                    this._state = ClientState.WaitForConnection;
+                    try {
+                        console.log('Trying to connect...');
+                        await client.connect(endpointUrl);
+                        console.log('Connected!');
+                        break;
+                    } catch (error) {
+                        console.log('Server not available, retrying in 3s...');
+                        await new Promise(r => setTimeout(r, 3000));
+                    }
+
+            }
+        }
+
+        Stop() {
+
         }
 
         Initialize(onSuccess, onError) { // TODO: This must noch be called in build, apply, prepare or start because of connecting attemts at startup
@@ -377,13 +386,26 @@
             if (!node) {
                 throw new Error(`Unknown data id: '${dataId}'`);
             }
-            readNodeAsync(this._session, node.nodeId).then(value => {
-                console.log(`✅ Value ${value} read from node '${node.rawNodeId}'`);
-                onResponse(value);
-            }).catch(error => {
-                console.error(`❌ Cannot read from node ${node.rawNodeId}: ${error.message}`);
-                onError(`Cannot read from node ${node.rawNodeId}: ${error.message}`);
-            });
+            try {
+                this._session.read({
+                    nodeId: node.nodeId,
+                    attributeId: AttributeIds.Value
+                }).then(dataValue => {
+                    if (dataValue.statusCode.name === 'Good') {
+                        const value = dataValue.value.value;
+                        console.log(`✅ Value ${value} read from node '${node.rawNodeId}'`);
+                        onResponse(value);
+                    } else {
+                        console.error(`⚠️  NodeId ${node.nodeId} exists, but status: ${dataValue.statusCode.name}`);
+                    }
+                }).catch(error => {
+                    console.error(`❌ Cannot read from node ${node.rawNodeId}: ${error.message}`);
+                    onError(`Cannot read from node ${node.rawNodeId}: ${error.message}`);
+                });
+            } catch (error) {
+                console.error(`❌ NodeId ${nodeId} could not be read: ${error.message}`);
+                onError(`NodeId ${nodeId} could not be read: ${error.message}`);
+            }
         }
 
         Write(dataId, value) {
@@ -391,11 +413,23 @@
             if (!node) {
                 throw new Error(`Unknown data id '${dataId}' fro write`);
             }
-            writeNodeAsync(this._session, node.accessString, node.rawType, value).then(() => {
+            try {
+                this._session.writeSingleNode(
+                    node.accessString,
+                    { dataType: node.rawType, value }
+                ).then(() => {
+                    console.log(`✅ Value ${value} written to node '${node.rawNodeId}'`);
+                }).catch(error => {
+                    console.error(`❌ Cannot write value ${value} to node ${node.rawNodeId}: ${error.message}`);
+                });
+            } catch (error) {
+                console.error(`❌ NodeId ${accessString} could not be written: ${error.message}`);
+            }
+            /* writeNodeAsync(this._session, node.accessString, node.rawType, value).then(() => {
                 console.log(`✅ Value ${value} written to node '${node.rawNodeId}'`);
             }).catch(error => {
                 console.error(`❌ Cannot write value ${value} to node ${node.rawNodeId}: ${error.message}`);
-            });
+            }); */
         }
 
         GetDataPoints() {
