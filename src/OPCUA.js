@@ -82,71 +82,6 @@
         return `ns=${namespace};s=${nodeId}`;
     }
 
-    async function updateMonitoredItems(subscription, toRemove, toAdd) {
-        /* ChatGPT generated:
-        await Promise.all(toRemove.map(id => {
-            const mi = activeItems.get(id);
-            activeItems.delete(id);
-            return mi.terminate();   // ← returns a Promise
-        }));
-        Note: is equivalent to: 
-        await Promise.all(toRemove.map(async id => {
-            const mi = activeItems.get(id);
-            activeItems.delete(id);
-            await mi.terminate();
-        }));
-        Both are 100% identical in behavior.
-
-        await Promise.all(toAdd.map(async id => {
-            const mi = await subscription.monitor(...);
-            activeItems.set(id, mi);
-        })); 
-        await Promise.all(toAdd.map(id => 
-            subscription.monitor(...).then(mi => {
-                activeItems.set(id, mi);
-            })
-        ));
-        */
-        await Promise.allSettled(toRemove.map(node => {
-            node.monitoredItem.terminate().then(() => {
-                console.log(`Un-monitored id '${node.dataId}'`);
-            }).catch(error => {
-                console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
-            });
-        }));
-        console.log(`un-monitored ${toRemove.length} items`);
-        toRemove.splice(0, toRemove.length);
-
-        await Promise.allSettled(toAdd.map(async node => {
-            await subscription.monitor(
-                {
-                    nodeId: node.nodeId,
-                    attributeId: AttributeIds.Value
-                },
-                {
-                    samplingInterval: 500,  // ms
-                    discardOldest: true,
-                    queueSize: 10
-                },
-                TimestampsToReturn.Both
-            ).then(monitoredItem => {
-                console.log(`Monitored id '${node.dataId}'`);
-                node.monitoredItem = monitoredItem;
-                monitoredItem.on('changed', dataValue => {
-                    const value = dataValue.value.value;
-                    console.log(`Value changed: ${value}`);
-                    try {
-                        node.onRefresh(value);
-                    } catch (error) {
-                        console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
-                    }
-                });
-            }).catch(error => console.error(`Failed to monitor '${node.dataId}': ${error.message}`));
-        }));
-        console.log(`monitored ${toAdd.length} items`);
-        toAdd.splice(0, toAdd.length);
-    }
-
     const START_TRY_RECONNECT_DELAY = 2;
     const MAX_TRY_RECONNECT_DELAY = 32;
     const UPDATE_MONITORING_DELAY = 200;
@@ -180,7 +115,7 @@
             this._onDisconnected = null;
             this._client.on('start_reconnection', () => {
                 this._connected = false;
-                console.log('### ==> Server lost, reconnecting...');
+                console.log(`UPC UA server connection lost to endpoint url: ${this._endpointUrl}`);
                 if (this._onDisconnected) {
                     try {
                         this._onDisconnected();
@@ -191,7 +126,7 @@
             });
             this._client.on('after_reconnection', () => {
                 this._connected = true;
-                console.log('### ==> Everything restored');
+                console.log(`UPC UA server to endpoint url: ${this._endpointUrl} reconnected and everything restored`);
                 this._initNodesAsync().then(() => {
                     if (this._onConnected) {
                         try {
@@ -202,12 +137,8 @@
                     }
                 });
             });
-            this._client.on('connection_lost', () => {
-                console.log('### ==> TCP connection lost');
-            });
-            this._client.on('backoff', (retry, delay) => {
-                console.log(`### ==> Retry #${retry} in ${delay}ms`);
-            });
+            this._client.on('connection_lost', () => console.log(`TCP connection lost to endpoint url: ${this._endpointUrl}`));
+            this._client.on('backoff', (retry, delay) => console.log(`### ==> Retry connection lost to endpoint url ${this._endpointUrl}: #${retry} in ${delay} ms`));
         }
 
         set OnConnected(value) {
@@ -247,6 +178,7 @@
 
         async _startAsync() {
             try {
+                // Start connect loop to OPC UA server (loop because the server might not be alive at the moment)
                 console.log(`Connecting OPC UC client to endpoint url: ${this._endpointUrl}`);
                 let connectRetryDelay = START_TRY_RECONNECT_DELAY;
                 while (this._running) {
@@ -265,17 +197,21 @@
                         }, connectRetryDelay * 1000));
                     }
                 }
+                // Check if a stop request has been received
                 if (!this._running || !this._connected) {
                     return;
                 }
+                // Create a session on the connection
                 this._session = await this._client.createSession();
                 console.log(`Connected to OPC UC client with endpoint url: ${this._endpointUrl}`);
+                // Read all required items and store the data type
                 await this._initNodesAsync();
                 console.log('Initialized nodes');
+                // Create subscription
                 this._subscription = ClientSubscription.create(this._session, {
                     requestedPublishingInterval: 1000,   // ms
                     requestedLifetimeCount: 100,
-                    requestedMaxKeepAliveCount: 5,
+                    requestedMaxKeepAliveCount: 5, // Make the server send keepalives more often.
                     maxNotificationsPerPublish: 100,
                     publishingEnabled: true,
                     priority: 10
@@ -285,6 +221,7 @@
                 }).on('terminated', () => {
                     console.log('Subscription terminated');
                 });
+                // Notify observer
                 if (this._onConnected) {
                     try {
                         this._onConnected();
@@ -317,6 +254,9 @@
                             node.rawType = dataValue.value.dataType;
                             node.type = getAsCoreDataType(dataValue.value.dataType);
                         } else {
+                            node.value = null;
+                            node.rawType = null;
+                            node.type = null;
                             console.error(`❌ Bad node '${dataId}' status: ${dataValue.statusCode.name}`);
                         }
                     }
@@ -406,30 +346,6 @@
                         this._updateMonitoringAsync();
                     }, UPDATE_MONITORING_DELAY);
                 }
-                /* this._subscription.monitor(
-                    {
-                        nodeId: node.nodeId,
-                        attributeId: AttributeIds.Value
-                    },
-                    {
-                        samplingInterval: 500,  // ms
-                        discardOldest: true,
-                        queueSize: 10
-                    },
-                    TimestampsToReturn.Both
-                ).then(monitoredItem => {
-                    console.log(`Monitored id '${node.dataId}'`);
-                    node.monitoredItem = monitoredItem;
-                    monitoredItem.on('changed', dataValue => {
-                        const value = dataValue.value.value;
-                        console.log(`Value changed: ${value}`);
-                        try {
-                            node.onRefresh(value);
-                        } catch (error) {
-                            console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
-                        }
-                    });
-                }).catch(error => console.error(`Failed to monitor '${node.dataId}': ${error.message}`)); */
             }
         }
 
@@ -447,9 +363,6 @@
                         this._updateMonitoringAsync();
                     }, UPDATE_MONITORING_DELAY);
                 }
-                /* if (node.monitoredItem) {
-                    node.monitoredItem.terminate().then(() => console.log(`Un-monitored id '${node.dataId}'`)).catch(error => console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`));
-                } */
             }
         }
 
@@ -506,7 +419,7 @@
                     Here it makes a difference which one to use because we need the returned mi to add to our collection.
                 */
                 await Promise.allSettled(toAdd.map(async node => {
-                    await subscription.monitor(
+                    await this._subscription.monitor(
                         {
                             nodeId: node.nodeId,
                             attributeId: AttributeIds.Value
@@ -516,13 +429,13 @@
                             discardOldest: true,
                             queueSize: 10
                         },
-                        TimestampsToReturn.Both
+                        TimestampsToReturn.Both // TODO: Required?
                     ).then(monitoredItem => {
                         console.log(`Monitored id '${node.dataId}'`);
                         node.monitoredItem = monitoredItem;
                         monitoredItem.on('changed', dataValue => {
                             const value = dataValue.value.value;
-                            console.log(`Value changed: ${value}`);
+                            console.log(`Value of node with id '${node.dataId}' changed: ${value}`);
                             try {
                                 node.onRefresh(value);
                             } catch (error) {
@@ -579,11 +492,6 @@
             } catch (error) {
                 console.error(`❌ NodeId ${accessString} could not be written: ${error.message}`);
             }
-            /* writeNodeAsync(this._session, node.accessString, node.rawType, value).then(() => {
-                console.log(`✅ Value ${value} written to node '${node.rawNodeId}'`);
-            }).catch(error => {
-                console.error(`❌ Cannot write value ${value} to node ${node.rawNodeId}: ${error.message}`);
-            }); */
         }
 
         GetDataPoints() {
@@ -591,7 +499,9 @@
             for (const dataId in this._nodes) {
                 if (this._nodes.hasOwnProperty(dataId)) {
                     const node = this._nodes[dataId];
-                    dataPoints.push({ id: dataId, type: node.type });
+                    if (typeof node.type === 'number') {
+                        dataPoints.push({ id: dataId, type: node.type });
+                    }
                 }
             }
             return dataPoints;
