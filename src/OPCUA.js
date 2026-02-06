@@ -135,10 +135,10 @@
                             console.error(`Failed calling onConnected(): ${error.message}`)
                         }
                     }
-                });
+                }).catch(error => console.error(`Failed init nodes: ${error.message}`));
             });
             this._client.on('connection_lost', () => console.log(`TCP connection lost to endpoint url: ${this._endpointUrl}`));
-            this._client.on('backoff', (retry, delay) => console.log(`### ==> Retry connection lost to endpoint url ${this._endpointUrl}: #${retry} in ${delay} ms`));
+            this._client.on('backoff', (retry, delay) => console.log(`Retry reconnection to endpoint url ${this._endpointUrl}: #${retry} in ${delay} ms`));
         }
 
         set OnConnected(value) {
@@ -165,6 +165,59 @@
 
         Start(onSuccess, onError) {
             this._running = true;
+            const tasks = [];
+            tasks.push((onSuc, onErr) => this._connect().then(onSuc).catch(onErr));
+            tasks.push((onSuc, onErr) => this._client.createSession().then(session => {
+                this._session = session;
+                console.log(`Created OPC UC session on endpoint url: ${this._endpointUrl}`);
+                onSuc();
+            }).catch(onErr));
+            // Read all required items and store the data type
+            tasks.push((onSuc, onErr) => this._initNodesAsync().then(() => {
+                console.log('Initialized nodes');
+                onSuc();
+            }).catch(onErr));
+            tasks.push((onSuc, onErr) => {
+                try {
+                    // Create subscription
+                    this._subscription = ClientSubscription.create(this._session, {
+                        requestedPublishingInterval: 1000,   // ms
+                        requestedLifetimeCount: 100,
+                        requestedMaxKeepAliveCount: 5, // Make the server send keepalives more often.
+                        maxNotificationsPerPublish: 100,
+                        publishingEnabled: true,
+                        priority: 10
+                    });
+                    this._subscription.on('started', () => console.log(`Subscription started - ID: ${this._subscription.subscriptionId}`));
+                    this._subscription.on('terminated', () => console.log(`Subscription terminated - ID: ${this._subscription.subscriptionId}`));
+                    onSuc();
+                } catch (error) {
+                    onErr(`Faild creating subscription: ${error.message}`);
+                }
+            });
+            tasks.push((onSuc, onErr) => {
+                // Notify observer
+                if (this._onConnected) {
+                    try {
+                        this._onConnected();
+                    } catch (error) {
+                        console.error(`Failed calling onConnected(): ${error.message}`)
+                    }
+                }
+                onSuc();
+            });
+            Executor.run(tasks, () => {
+                console.log(`Successfully started OPC UA client to endpoint url: ${this._endpointUrl}`);
+                onSuccess();
+            }, error => {
+                const message = `Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`;
+                console.error(message);
+                onError(message);
+            });
+        }
+
+        Start_DISCARDED(onSuccess, onError) {
+            this._running = true;
             try {
                 this._startAsync()
                     .then(() => console.log(`Successfully started OPC UA client to endpoint url: ${this._endpointUrl}`))
@@ -173,6 +226,29 @@
             } catch (error) {
                 console.error(`Failed callign _startAsync(): ${error.message}`);
                 onError(error);
+            }
+        }
+
+        async _connect() {
+            // Start connect loop to OPC UA server (loop because the server might not be alive at the moment)
+            console.log(`Connecting OPC UC client to endpoint url: ${this._endpointUrl}`);
+            let connectRetryDelay = START_TRY_RECONNECT_DELAY;
+            while (this._running) {
+                try {
+                    console.log('Trying to connect...');
+                    await this._client.connect(this._endpointUrl);
+                    console.log(`Connected to OPC UC client with endpoint url: ${this._endpointUrl}`);
+                    this._connected = true;
+                    return;
+                } catch (error) {
+                    console.log(`Server not available, retrying in ${connectRetryDelay} s...`);
+                    await new Promise(resolve => setTimeout(() => {
+                        if (connectRetryDelay < MAX_TRY_RECONNECT_DELAY) {
+                            connectRetryDelay *= 2;
+                        }
+                        resolve();
+                    }, connectRetryDelay * 1000));
+                }
             }
         }
 
@@ -265,6 +341,85 @@
         }
 
         Stop(onSuccess, onError) {
+            this._running = false;
+            const tasks = [];
+            tasks.push((onSuc, onErr) => {
+                if (this._connected && this._onDisconnected) {
+                    try {
+                        this._onDisconnected();
+                    } catch (error) {
+                        console.error(`Failed calling onDisonnected(): ${error.message}`)
+                    }
+                }
+                onSuc();
+            });
+            tasks.push((onSuc, onErr) => {
+                const nodes = this._nodes, terminations = [];
+                for (const dataId in nodes) {
+                    if (nodes.hasOwnProperty(dataId)) {
+                        (function () {
+                            const node = nodes[dataId];
+                            if (node.monitoredItem) {
+                                terminations.push((os, oe) => node.monitoredItem.terminate().then(() => {
+                                    node.monitoredItem = null;
+                                    console.log(`Un-monitored id '${node.dataId}'`);
+                                    os();
+                                }).catch(error => {
+                                    node.monitoredItem = null;
+                                    console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
+                                    os();
+                                }));
+                            }
+                        }());
+                    }
+                }
+                terminations.parallel = true;
+                Executor.run(terminations, onSuc, error => {
+                    console.error(`Failed to un-monitor ${error.message}`);
+                    onSuc();
+                });
+            });
+            if (this._subscription) {
+                tasks.push((onSuc, onErr) => {
+                    this._subscription.terminate().then(() => {
+                        this._subscription = null;
+                        onSuc();
+                    }).catch(error => {
+                        this._subscription = null;
+                        console.error(`Failed to terminate subscription ${error.message}`);
+                        onSuc();
+                    });
+                });
+            }
+            if (this._session) {
+                tasks.push((onSuc, onErr) => {
+                    this._session.close().then(() => {
+                        this._session = null;
+                        onSuc();
+                    }).catch(error => {
+                        this._session = null;
+                        console.error(`Failed to close session ${error.message}`);
+                        onSuc();
+                    });
+                });
+            }
+            tasks.push((onSuc, onErr) => {
+                this._client.disconnect().then(onSuc).catch(error => {
+                    console.error(`Failed to disconnect ${error.message}`);
+                    onSuc();
+                });
+            });
+            Executor.run(tasks, () => {
+                console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`);
+                onSuccess();
+            }, error => {
+                const message = `Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`;
+                console.error(message);
+                onError(message);
+            });
+        }
+
+        Stop_DISCARDED(onSuccess, onError) {
             this._running = false;
             if (this._connected && this._onDisconnected) {
                 try {
@@ -366,6 +521,53 @@
             }
         }
 
+        _updateMonitoring() {
+            if (this._subscription) {
+                const toAdd = [], toRemove = [];
+                for (const dataId in this._nodes) {
+                    if (this._nodes.hasOwnProperty(dataId)) {
+                        const node = this._nodes[dataId];
+                        if (node.onRefresh) {
+                            if (this._monitoredItems[dataId] === undefined) {
+                                this._monitoredItems[dataId] = true;
+                                toAdd.push(node);
+                            }
+                        } else {
+                            if (this._monitoredItems[dataId] === true) {
+                                delete this._monitoredItems[dataId];
+                                toRemove.push(node);
+                            }
+                        }
+                    }
+                }
+                const tasks = [];
+                if (toRemove.length > 0) {
+                    tasks.push((onSuc, onErr) => {
+
+                    });
+                }
+                tasks.push((onSuc, onErr) => {
+
+                });
+                tasks.push((onSuc, onErr) => {
+
+                });
+                tasks.push((onSuc, onErr) => {
+
+                });
+                tasks.push((onSuc, onErr) => {
+
+                });
+                Executor.run(tasks, () => {
+                    console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`);
+                    onSuccess();
+                }, error => {
+                    const message = `Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`;
+                    console.error(message);
+                    onError(message);
+                });
+            }
+        }
         async _updateMonitoringAsync() {
             if (this._subscription) {
                 const toAdd = [], toRemove = [];
