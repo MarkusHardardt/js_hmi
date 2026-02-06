@@ -82,78 +82,31 @@
         return `ns=${namespace};s=${nodeId}`;
     }
 
-    async function startOpcuaClientAsync(client, endpointUrl, nodes) {
-        try {
-            console.log(`Connecting OPC UC client to endpointUrl: ${endpointUrl}`);
-            while (true) {
-                try {
-                    console.log('Trying to connect...');
-                    await client.connect(endpointUrl);
-                    console.log('Connected!');
-                    break;
-                } catch (error) {
-                    console.log('Server not available, retrying in 3s...');
-                    await new Promise(r => setTimeout(r, 3000));
-                }
-            }
-            const session = await client.createSession();
-            console.log('Successfully connected!');
-
-            for (const dataId in nodes) {
-                if (nodes.hasOwnProperty(dataId)) {
-                    const node = nodes[dataId];
-                    try {
-                        const dataValue = await session.read({ nodeId: node.nodeId, attributeId: AttributeIds.Value });
-                        if (dataValue.statusCode.name === 'Good') {
-                            node.value = dataValue.value.value;
-                            node.rawType = dataValue.value.dataType;
-                            node.type = getAsCoreDataType(dataValue.value.dataType);
-                        } else {
-                            console.error(`❌  NodeId ${id} exists, but status: ${dataValue.statusCode.name}`);
-                        }
-                    } catch (err) {
-                        console.error(`❌ NodeId ${id} could not be read:`, err.message);
-                    }
-                }
-            }
-            return session;
-        } catch (error) {
-            console.error(`Failed starting OPC UC client: ${error.message}`);
-        }
-    }
-
-    async function stopOpcuaClientAsync(session, client, subscription, nodes) {
-        try {
-            console.log('cleaning up ...');
-            for (const dataId in nodes) {
-                if (nodes.hasOwnProperty(dataId)) {
-                    const node = nodes[dataId];
-                    if (node.monitoredItem) {
-                        await node.monitoredItem.terminate();
-                    }
-                }
-            }
-            await subscription.terminate();
-            await session.close();
-            await client.disconnect();
-            console.log('cleanup done');
-        } catch (error) {
-            console.error(`Failed stopping OPC UC client: ${error.message}`);
-        }
-    }
-
     async function updateMonitoredItems(subscription, toRemove, toAdd) {
         /* ChatGPT generated:
         await Promise.all(toRemove.map(id => {
             const mi = activeItems.get(id);
             activeItems.delete(id);
-            return mi.terminate();
+            return mi.terminate();   // ← returns a Promise
         }));
+        Note: is equivalent to: 
+        await Promise.all(toRemove.map(async id => {
+            const mi = activeItems.get(id);
+            activeItems.delete(id);
+            await mi.terminate();
+        }));
+        Both are 100% identical in behavior.
 
         await Promise.all(toAdd.map(async id => {
             const mi = await subscription.monitor(...);
             activeItems.set(id, mi);
-        })); */
+        })); 
+        await Promise.all(toAdd.map(id => 
+            subscription.monitor(...).then(mi => {
+                activeItems.set(id, mi);
+            })
+        ));
+        */
         await Promise.allSettled(toRemove.map(node => {
             node.monitoredItem.terminate().then(() => {
                 console.log(`Un-monitored id '${node.dataId}'`);
@@ -214,6 +167,7 @@
             this._monitoredItems = {};
             this._running = false;
             this._connected = false;
+            this._subscription = null;
             this._session = null;
             this._client = OPCUAClient.create({
                 endpointMustExist: false, // Do NOT cache and pin the endpoint description from the first successful connection.
@@ -222,12 +176,31 @@
                     maxRetry: -1       // infinite retry AFTER first connection.
                 }
             });
+            this._onConnected = null;
+            this._onDisconnected = null;
             this._client.on("start_reconnection", () => {
                 this._connected = false;
                 console.log("Server lost, reconnecting...");
+                if (this._onDisconnected) {
+                    try {
+                        this._onDisconnected();
+                    } catch (error) {
+                        console.error(`Failed calling onDisonnected(): ${error.message}`)
+                    }
+                }
             });
             this._client.on("after_reconnection", () => {
+                this._connected = true;
                 console.log("Everything restored");
+                this._initNodesAsync().then(() => {
+                    if (this._onConnected) {
+                        try {
+                            this._onConnected();
+                        } catch (error) {
+                            console.error(`Failed calling onCnnected(): ${error.message}`)
+                        }
+                    }
+                });
             });
             this._client.on("connection_lost", () => {
                 console.log("TCP connection lost");
@@ -235,6 +208,28 @@
             this._client.on("backoff", (retry, delay) => {
                 console.log(`Retry #${retry} in ${delay}ms`);
             });
+        }
+
+        set OnConnected(value) {
+            if (value !== null) {
+                if (typeof value !== 'function') {
+                    throw new Error('onConnected() is not a function');
+                }
+                this._onConnected = value;
+            } else {
+                this._onConnected = null;
+            }
+        }
+
+        set OnDisconnected(value) {
+            if (value !== null) {
+                if (typeof value !== 'function') {
+                    throw new Error('onDisonnected() is not a function');
+                }
+                this._onDisconnected = value;
+            } else {
+                this._onDisconnected = null;
+            }
         }
 
         Start(onSuccess, onError) {
@@ -290,27 +285,33 @@
                 });
                 await this._initNodesAsync();
                 console.log('Initialized nodes');
-
+                if (this._onConnected) {
+                    try {
+                        this._onConnected();
+                    } catch (error) {
+                        console.error(`Failed calling onCnnected(): ${error.message}`)
+                    }
+                }
             } catch (error) {
                 console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`);
             }
         }
 
         async _initNodesAsync() {
-            const nodesToRead = [];
-            for (const dataId in this._nodes) {
-                if (this._nodes.hasOwnProperty(dataId)) {
-                    const node = this._nodes[dataId];
-                    nodesToRead.push({ nodeId: node.nodeId, attributeId: AttributeIds.Value });
+            if (this._session) {
+                const nodesToRead = [];
+                for (const dataId in this._nodes) {
+                    if (this._nodes.hasOwnProperty(dataId)) {
+                        const node = this._nodes[dataId];
+                        nodesToRead.push({ nodeId: node.nodeId, attributeId: AttributeIds.Value });
+                    }
                 }
-            }
-            const dataValues = await this._session.read(nodesToRead);
-            console.log(`read nodes: ${JSON.stringify(dataValues, undefined, 4)}`);
-            /* for (const dataId in this._nodes) {
-                if (nodes.hasOwnProperty(dataId)) {
-                    const node = this._nodes[dataId];
-                    try {
-                        const dataValue = await this._session.read({ nodeId: node.nodeId, attributeId: AttributeIds.Value });
+                const dataValues = await this._session.read(nodesToRead);
+                let index = 0;
+                for (const dataId in this._nodes) {
+                    if (this._nodes.hasOwnProperty(dataId)) {
+                        const node = this._nodes[dataId];
+                        const dataValue = dataValues[index++];
                         if (dataValue.statusCode.name === 'Good') {
                             node.value = dataValue.value.value;
                             node.rawType = dataValue.value.dataType;
@@ -318,19 +319,28 @@
                         } else {
                             console.error(`❌ Bad node '${dataId}' status: ${dataValue.statusCode.name}`);
                         }
-                    } catch (error) {
-                        console.error(`❌ Failed reading node '${dataId}': ${error.message}`);
                     }
                 }
-            }*/
+            }
         }
 
         Stop(onSuccess, onError) {
             this._running = false;
+            if (this._connected && this._onDisconnected) {
+                try {
+                    this._onDisconnected();
+                } catch (error) {
+                    console.error(`Failed calling onDisonnected(): ${error.message}`)
+                }
+            }
             try {
-                this._stopAsync()
-                    .then(() => console.log('Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}'))
-                    .catch(error => console.error(`Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error}`));
+                this._stopAsync().then(() => {
+                    console.log('Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}');
+                    onSuccess();
+                }).catch(error => {
+                    console.error(`Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error}`);
+                    onError(error);
+                });
                 onSuccess();
             } catch (error) {
                 console.error(`Failed callign _stopAsync(): ${error.message}`);
@@ -341,58 +351,39 @@
         async _stopAsync() {
             try {
                 console.log('cleaning up ...');
-                for (const dataId in this._nodes) {
-                    if (this._nodes.hasOwnProperty(dataId)) {
-                        const node = this._nodes[dataId];
-                        if (node.monitoredItem) {
-                            await node.monitoredItem.terminate();
-                        }
+                const nodes = this._nodes, monitoredItems = [];
+                for (const dataId in nodes) {
+                    if (nodes.hasOwnProperty(dataId)) {
+                        (function () {
+                            const node = nodes[dataId];
+                            if (node.monitoredItem) {
+                                // Add promise returned by terminate->thet->catch
+                                monitoredItems.push(node.monitoredItem.terminate().then(() => {
+                                    node.monitoredItem = null;
+                                    console.log(`Un-monitored id '${node.dataId}'`);
+                                }).catch(error => {
+                                    node.monitoredItem = null;
+                                    console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
+                                }));
+                            }
+                        }());
                     }
                 }
-                await this._subscription.terminate();
-                await this._session.close();
-                await this._client.disconnect();
+                await Promise.allSettled(monitoredItems);
+                if (this._subscription) {
+                    await this._subscription.terminate();
+                    this._subscription = null;
+                }
+                if (this._session) {
+                    await this._session.close();
+                    this._session = null;
+                }
+                if (this._connected) {
+                    await this._client.disconnect();
+                }
                 console.log('cleanup done');
             } catch (error) {
                 console.error(`Failed stopping OPC UC client: ${error.message}`);
-            }
-        }
-
-        _Initialize_DEPRECATED(onSuccess, onError) { // TODO: This must noch be called in build, apply, prepare or start because of connecting attemts at startup
-            const tasks = [];
-            tasks.push((onSuc, onErr) => startOpcuaClientAsync(this._client, this._endpointUrl, this._nodes).then(session => {
-                this._session = session;
-                onSuc();
-            }).catch(onErr));
-            tasks.push((onSuc, onErr) => {
-                this._subscription = ClientSubscription.create(this._session, {
-                    requestedPublishingInterval: 1000,   // ms
-                    requestedLifetimeCount: 100,
-                    requestedMaxKeepAliveCount: 10,
-                    maxNotificationsPerPublish: 100,
-                    publishingEnabled: true,
-                    priority: 10
-                });
-                this._subscription.on('started', () => {
-                    console.log('Subscription started - ID:', this._subscription.subscriptionId);
-                }).on('terminated', () => {
-                    console.log('Subscription terminated');
-                });
-                onSuc();
-            });
-            Executor.run(tasks, () => {
-                // console.log(`Nodes: ${JSON.stringify(this._nodes, undefined, 2)}`);
-                onSuccess();
-            }, error => {
-                onError(error);
-            })
-        }
-
-        Shutdown(onSuccess, onError) {
-            if (this._session) {
-                stopOpcuaClientAsync(this._session, this._client, this._subscription, this._nodes).then(onSuccess);
-            } else {
-                onError('Session not started');
             }
         }
 
@@ -409,10 +400,10 @@
                 console.error(`Node with data id: '${dataId}' is already subscribed with same onRefresh(value) callback`);
             } else {
                 node.onRefresh = onRefresh;
-                if (!this._updateMonitoringTimer) {
+                if (this._subscription && !this._updateMonitoringTimer) {
                     this._updateMonitoringTimer = setTimeout(() => {
                         this._updateMonitoringTimer = null;
-                        this._updateMonitoring();
+                        this._updateMonitoringAsync();
                     }, UPDATE_MONITORING_DELAY);
                 }
                 /* this._subscription.monitor(
@@ -450,10 +441,10 @@
                 console.error(`Node with data id: '${dataId}' is not subscribed with passed onRefresh(value) callback`);
             } else {
                 node.onRefresh = null;
-                if (!this._updateMonitoringTimer) {
+                if (this._subscription && !this._updateMonitoringTimer) {
                     this._updateMonitoringTimer = setTimeout(() => {
                         this._updateMonitoringTimer = null;
-                        this._updateMonitoring();
+                        this._updateMonitoringAsync();
                     }, UPDATE_MONITORING_DELAY);
                 }
                 /* if (node.monitoredItem) {
@@ -462,29 +453,86 @@
             }
         }
 
-        _updateMonitoring() {
-            const toAdd = [], toRemove = [];
-            for (const dataId in this._nodes) {
-                if (this._nodes.hasOwnProperty(dataId)) {
-                    const node = this._nodes[dataId];
-                    if (node.onRefresh) {
-                        if (this._monitoredItems[dataId] === undefined) {
-                            this._monitoredItems[dataId] = true;
-                            toAdd.push(node);
-                        }
-                    } else {
-                        if (this._monitoredItems[dataId] === true) {
-                            delete this._monitoredItems[dataId];
-                            toRemove.push(node);
+        async _updateMonitoringAsync() {
+            if (this._subscription) {
+                const toAdd = [], toRemove = [];
+                for (const dataId in this._nodes) {
+                    if (this._nodes.hasOwnProperty(dataId)) {
+                        const node = this._nodes[dataId];
+                        if (node.onRefresh) {
+                            if (this._monitoredItems[dataId] === undefined) {
+                                this._monitoredItems[dataId] = true;
+                                toAdd.push(node);
+                            }
+                        } else {
+                            if (this._monitoredItems[dataId] === true) {
+                                delete this._monitoredItems[dataId];
+                                toRemove.push(node);
+                            }
                         }
                     }
                 }
+                /* ChatGPT generated two versions which are 100% equivalent in behavior:
+                    await Promise.all(toRemove.map(id => {
+                        const mi = activeItems.get(id);
+                        activeItems.delete(id);
+                        return mi.terminate();   // ← returns a Promise
+                    }));
+                    await Promise.all(toRemove.map(async id => {
+                        const mi = activeItems.get(id);
+                        activeItems.delete(id);
+                        await mi.terminate();
+                    }));
+                    Here it makes no difference which one to use.
+                */
+                await Promise.allSettled(toRemove.map(async node => {
+                    await node.monitoredItem.terminate().then(() => {
+                        console.log(`Un-monitored id '${node.dataId}'`);
+                    }).catch(error => {
+                        console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
+                    });
+                }));
+                console.log(`un-monitored ${toRemove.length} items`);
+                /* ChatGPT generated two versions which are 100% equivalent in behavior:
+                    await Promise.all(toAdd.map(async id => {
+                        const mi = await subscription.monitor(...);
+                        activeItems.set(id, mi);
+                    })); 
+                    await Promise.all(toAdd.map(id => 
+                        subscription.monitor(...).then(mi => {
+                            activeItems.set(id, mi);
+                        })
+                    ));
+                    Here it makes a difference which one to use because we need the returned mi to add to our collection.
+                */
+                await Promise.allSettled(toAdd.map(async node => {
+                    await subscription.monitor(
+                        {
+                            nodeId: node.nodeId,
+                            attributeId: AttributeIds.Value
+                        },
+                        {
+                            samplingInterval: 500,  // ms
+                            discardOldest: true,
+                            queueSize: 10
+                        },
+                        TimestampsToReturn.Both
+                    ).then(monitoredItem => {
+                        console.log(`Monitored id '${node.dataId}'`);
+                        node.monitoredItem = monitoredItem;
+                        monitoredItem.on('changed', dataValue => {
+                            const value = dataValue.value.value;
+                            console.log(`Value changed: ${value}`);
+                            try {
+                                node.onRefresh(value);
+                            } catch (error) {
+                                console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
+                            }
+                        });
+                    }).catch(error => console.error(`Failed to monitor '${node.dataId}': ${error.message}`));
+                }));
+                console.log(`monitored ${toAdd.length} items`);
             }
-            updateMonitoredItems(this._subscription, toRemove, toAdd).then(() => {
-                console.log('Updated monitoring');
-            }).catch(error => {
-                conmsole.error(`Failed updating monitoring: ${error.message}`);
-            });
         }
 
         Read(dataId, onResponse, onError) {
