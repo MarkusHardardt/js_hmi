@@ -82,6 +82,75 @@
         return `ns=${namespace};s=${nodeId}`;
     }
 
+    /* ChatGPT generated two versions which are 100% equivalent in behavior:
+        await Promise.all(toAdd.map(async id => {
+            const mi = await subscription.monitor(...);
+            activeItems.set(id, mi);
+        })); 
+        await Promise.all(toAdd.map(id => 
+            subscription.monitor(...).then(mi => {
+                activeItems.set(id, mi);
+            })
+        ));
+        Here it makes a difference which one to use because we need the returned mi to add to our collection.  */
+    function getEstablishMonitoredItemTask(subscription, node) {
+        return (onSuccess, onError) => subscription.monitor(
+            {
+                nodeId: node.nodeId,
+                attributeId: AttributeIds.Value
+            },
+            {
+                samplingInterval: 500,  // ms
+                discardOldest: true,
+                queueSize: 10
+            },
+            TimestampsToReturn.Both // TODO: Required?
+        ).then(monitoredItem => {
+            console.log(`Monitored id '${node.dataId}'`);
+            node.monitoredItem = monitoredItem;
+            monitoredItem.on('changed', dataValue => {
+                const value = dataValue.value.value;
+                console.log(`Value of node with id '${node.dataId}' changed: ${value}`);
+                try {
+                    node.onRefresh(value);
+                } catch (error) {
+                    console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
+                }
+            });
+            onSuccess();
+        }).catch(error => {
+            const message = `Failed to monitor '${node.dataId}': ${error.message}`;
+            console.error(message);
+            onError(message);
+        });
+
+    }
+
+    /* ChatGPT generated two versions which are 100% equivalent in behavior:
+        await Promise.all(toRemove.map(id => {
+            const mi = activeItems.get(id);
+            activeItems.delete(id);
+            return mi.terminate();   // ← returns a Promise
+        }));
+        await Promise.all(toRemove.map(async id => {
+            const mi = activeItems.get(id);
+            activeItems.delete(id);
+            await mi.terminate();
+        }));
+        Here it makes no difference which one to use.  */
+    function getTerminateMonitoredItemTask(node) {
+        return (onSuccess, onError) => node.monitoredItem.terminate().then(() => {
+            node.monitoredItem = null;
+            console.log(`Un-monitored id '${node.dataId}'`);
+            onSuccess();
+        }).catch(error => {
+            node.monitoredItem = null;
+            const message = `Failed to un-monitor '${node.dataId}': ${error.message}`;
+            console.error(message);
+            onError(message);
+        });
+    }
+
     const START_TRY_RECONNECT_DELAY = 2;
     const MAX_TRY_RECONNECT_DELAY = 32;
     const UPDATE_MONITORING_DELAY = 200;
@@ -206,27 +275,11 @@
                 }
                 onSuc();
             });
-            Executor.run(tasks, () => {
-                console.log(`Successfully started OPC UA client to endpoint url: ${this._endpointUrl}`);
-                onSuccess();
-            }, error => {
-                const message = `Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`;
-                console.error(message);
-                onError(message);
-            });
-        }
-
-        Start_DISCARDED(onSuccess, onError) {
-            this._running = true;
-            try {
-                this._startAsync()
-                    .then(() => console.log(`Successfully started OPC UA client to endpoint url: ${this._endpointUrl}`))
-                    .catch(error => console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`));
-                onSuccess();
-            } catch (error) {
-                console.error(`Failed callign _startAsync(): ${error.message}`);
-                onError(error);
-            }
+            Executor.run(tasks,
+                () => console.log(`Successfully started OPC UA client to endpoint url: ${this._endpointUrl}`),
+                error => console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`)
+            );
+            onSuccess();
         }
 
         async _connect() {
@@ -249,64 +302,6 @@
                         resolve();
                     }, connectRetryDelay * 1000));
                 }
-            }
-        }
-
-        async _startAsync() {
-            try {
-                // Start connect loop to OPC UA server (loop because the server might not be alive at the moment)
-                console.log(`Connecting OPC UC client to endpoint url: ${this._endpointUrl}`);
-                let connectRetryDelay = START_TRY_RECONNECT_DELAY;
-                while (this._running) {
-                    try {
-                        console.log('Trying to connect...');
-                        await this._client.connect(this._endpointUrl);
-                        this._connected = true;
-                        break;
-                    } catch (error) {
-                        console.log(`Server not available, retrying in ${connectRetryDelay} s...`);
-                        await new Promise(resolve => setTimeout(() => {
-                            if (connectRetryDelay < MAX_TRY_RECONNECT_DELAY) {
-                                connectRetryDelay *= 2;
-                            }
-                            resolve();
-                        }, connectRetryDelay * 1000));
-                    }
-                }
-                // Check if a stop request has been received
-                if (!this._running || !this._connected) {
-                    return;
-                }
-                // Create a session on the connection
-                this._session = await this._client.createSession();
-                console.log(`Connected to OPC UC client with endpoint url: ${this._endpointUrl}`);
-                // Read all required items and store the data type
-                await this._initNodesAsync();
-                console.log('Initialized nodes');
-                // Create subscription
-                this._subscription = ClientSubscription.create(this._session, {
-                    requestedPublishingInterval: 1000,   // ms
-                    requestedLifetimeCount: 100,
-                    requestedMaxKeepAliveCount: 5, // Make the server send keepalives more often.
-                    maxNotificationsPerPublish: 100,
-                    publishingEnabled: true,
-                    priority: 10
-                });
-                this._subscription.on('started', () => {
-                    console.log('Subscription started - ID:', this._subscription.subscriptionId);
-                }).on('terminated', () => {
-                    console.log('Subscription terminated');
-                });
-                // Notify observer
-                if (this._onConnected) {
-                    try {
-                        this._onConnected();
-                    } catch (error) {
-                        console.error(`Failed calling onConnected(): ${error.message}`)
-                    }
-                }
-            } catch (error) {
-                console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`);
             }
         }
 
@@ -360,15 +355,7 @@
                         (function () {
                             const node = nodes[dataId];
                             if (node.monitoredItem) {
-                                terminations.push((os, oe) => node.monitoredItem.terminate().then(() => {
-                                    node.monitoredItem = null;
-                                    console.log(`Un-monitored id '${node.dataId}'`);
-                                    os();
-                                }).catch(error => {
-                                    node.monitoredItem = null;
-                                    console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
-                                    os();
-                                }));
+                                terminations.push(getTerminateMonitoredItemTask(node));
                             }
                         }());
                     }
@@ -419,69 +406,6 @@
             });
         }
 
-        Stop_DISCARDED(onSuccess, onError) {
-            this._running = false;
-            if (this._connected && this._onDisconnected) {
-                try {
-                    this._onDisconnected();
-                } catch (error) {
-                    console.error(`Failed calling onDisonnected(): ${error.message}`)
-                }
-            }
-            try {
-                this._stopAsync().then(() => {
-                    console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`);
-                    onSuccess();
-                }).catch(error => {
-                    console.error(`Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`);
-                    onError(error);
-                });
-                onSuccess();
-            } catch (error) {
-                console.error(`Failed callign _stopAsync(): ${error.message}`);
-                onError(error);
-            }
-        }
-
-        async _stopAsync() {
-            try {
-                console.log('cleaning up ...');
-                const nodes = this._nodes, monitoredItems = [];
-                for (const dataId in nodes) {
-                    if (nodes.hasOwnProperty(dataId)) {
-                        (function () {
-                            const node = nodes[dataId];
-                            if (node.monitoredItem) {
-                                // Add promise returned by terminate->thet->catch
-                                monitoredItems.push(node.monitoredItem.terminate().then(() => {
-                                    node.monitoredItem = null;
-                                    console.log(`Un-monitored id '${node.dataId}'`);
-                                }).catch(error => {
-                                    node.monitoredItem = null;
-                                    console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
-                                }));
-                            }
-                        }());
-                    }
-                }
-                await Promise.allSettled(monitoredItems);
-                if (this._subscription) {
-                    await this._subscription.terminate();
-                    this._subscription = null;
-                }
-                if (this._session) {
-                    await this._session.close();
-                    this._session = null;
-                }
-                if (this._connected) {
-                    await this._client.disconnect();
-                }
-                console.log('cleanup done');
-            } catch (error) {
-                console.error(`Failed stopping OPC UC client: ${error.message}`);
-            }
-        }
-
         GetType(dataId) {
             const node = this._nodes[dataId];
             return node ? node.type : Core.DataType.Unknown;
@@ -498,7 +422,7 @@
                 if (this._subscription && !this._updateMonitoringTimer) {
                     this._updateMonitoringTimer = setTimeout(() => {
                         this._updateMonitoringTimer = null;
-                        this._updateMonitoringAsync();
+                        this._updateMonitoring();
                     }, UPDATE_MONITORING_DELAY);
                 }
             }
@@ -515,7 +439,7 @@
                 if (this._subscription && !this._updateMonitoringTimer) {
                     this._updateMonitoringTimer = setTimeout(() => {
                         this._updateMonitoringTimer = null;
-                        this._updateMonitoringAsync();
+                        this._updateMonitoring();
                     }, UPDATE_MONITORING_DELAY);
                 }
             }
@@ -530,123 +454,29 @@
                         if (node.onRefresh) {
                             if (this._monitoredItems[dataId] === undefined) {
                                 this._monitoredItems[dataId] = true;
-                                toAdd.push(node);
+                                toAdd.push(getEstablishMonitoredItemTask(this._subscription, node));
                             }
                         } else {
                             if (this._monitoredItems[dataId] === true) {
                                 delete this._monitoredItems[dataId];
-                                toRemove.push(node);
+                                toRemove.push(getTerminateMonitoredItemTask(node));
                             }
                         }
                     }
                 }
                 const tasks = [];
                 if (toRemove.length > 0) {
-                    tasks.push((onSuc, onErr) => {
-
-                    });
+                    toRemove.parallel = true;
+                    tasks.push((onSuccess, onError) => Executor.run(toRemove, onSuccess, error => onSuccess()));
                 }
-                tasks.push((onSuc, onErr) => {
-
-                });
-                tasks.push((onSuc, onErr) => {
-
-                });
-                tasks.push((onSuc, onErr) => {
-
-                });
-                tasks.push((onSuc, onErr) => {
-
-                });
-                Executor.run(tasks, () => {
-                    console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`);
-                    onSuccess();
-                }, error => {
-                    const message = `Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`;
-                    console.error(message);
-                    onError(message);
-                });
-            }
-        }
-        async _updateMonitoringAsync() {
-            if (this._subscription) {
-                const toAdd = [], toRemove = [];
-                for (const dataId in this._nodes) {
-                    if (this._nodes.hasOwnProperty(dataId)) {
-                        const node = this._nodes[dataId];
-                        if (node.onRefresh) {
-                            if (this._monitoredItems[dataId] === undefined) {
-                                this._monitoredItems[dataId] = true;
-                                toAdd.push(node);
-                            }
-                        } else {
-                            if (this._monitoredItems[dataId] === true) {
-                                delete this._monitoredItems[dataId];
-                                toRemove.push(node);
-                            }
-                        }
-                    }
+                if (toAdd.length > 0) {
+                    toAdd.parallel = true;
+                    tasks.push((onSuccess, onError) => Executor.run(toAdd, onSuccess, error => onSuccess()));
                 }
-                /* ChatGPT generated two versions which are 100% equivalent in behavior:
-                    await Promise.all(toRemove.map(id => {
-                        const mi = activeItems.get(id);
-                        activeItems.delete(id);
-                        return mi.terminate();   // ← returns a Promise
-                    }));
-                    await Promise.all(toRemove.map(async id => {
-                        const mi = activeItems.get(id);
-                        activeItems.delete(id);
-                        await mi.terminate();
-                    }));
-                    Here it makes no difference which one to use.
-                */
-                await Promise.allSettled(toRemove.map(async node => {
-                    await node.monitoredItem.terminate().then(() => {
-                        console.log(`Un-monitored id '${node.dataId}'`);
-                    }).catch(error => {
-                        console.error(`Failed to un-monitor '${node.dataId}': ${error.message}`);
-                    });
-                }));
-                console.log(`un-monitored ${toRemove.length} items`);
-                /* ChatGPT generated two versions which are 100% equivalent in behavior:
-                    await Promise.all(toAdd.map(async id => {
-                        const mi = await subscription.monitor(...);
-                        activeItems.set(id, mi);
-                    })); 
-                    await Promise.all(toAdd.map(id => 
-                        subscription.monitor(...).then(mi => {
-                            activeItems.set(id, mi);
-                        })
-                    ));
-                    Here it makes a difference which one to use because we need the returned mi to add to our collection.
-                */
-                await Promise.allSettled(toAdd.map(async node => {
-                    await this._subscription.monitor(
-                        {
-                            nodeId: node.nodeId,
-                            attributeId: AttributeIds.Value
-                        },
-                        {
-                            samplingInterval: 500,  // ms
-                            discardOldest: true,
-                            queueSize: 10
-                        },
-                        TimestampsToReturn.Both // TODO: Required?
-                    ).then(monitoredItem => {
-                        console.log(`Monitored id '${node.dataId}'`);
-                        node.monitoredItem = monitoredItem;
-                        monitoredItem.on('changed', dataValue => {
-                            const value = dataValue.value.value;
-                            console.log(`Value of node with id '${node.dataId}' changed: ${value}`);
-                            try {
-                                node.onRefresh(value);
-                            } catch (error) {
-                                console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
-                            }
-                        });
-                    }).catch(error => console.error(`Failed to monitor '${node.dataId}': ${error.message}`));
-                }));
-                console.log(`monitored ${toAdd.length} items`);
+                Executor.run(tasks,
+                    () => console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`),
+                    error => console.error(`Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`)
+                );
             }
         }
 
