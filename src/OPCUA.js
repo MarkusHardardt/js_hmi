@@ -78,10 +78,6 @@
     }
     OPCUA.loadKeysAndValuesFromCSVFile = loadKeysAndValuesFromCSVFile;
 
-    function getAccessString(namespace, nodeId) {
-        return `ns=${namespace};s=${nodeId}`;
-    }
-
     /* ChatGPT generated two versions which are 100% equivalent in behavior:
         await Promise.all(toAdd.map(async id => {
             const mi = await subscription.monitor(...);
@@ -148,6 +144,15 @@
     const MAX_TRY_RECONNECT_DELAY = 32;
     const UPDATE_MONITORING_DELAY = 200;
 
+    const ClientOperationLevel = Object.freeze({
+        Disconnected: 0,
+        Connecting: 1,
+        Connected: 2,
+        SessionCreated: 3,
+        NodeInitialized: 4,
+        Subscribed: 5
+    });
+
     class Client {
         constructor(endpointUrl, namespace, nodesConfig) {
             this._endpointUrl = endpointUrl;
@@ -155,14 +160,14 @@
             for (const dataId in nodesConfig) {
                 if (nodesConfig.hasOwnProperty(dataId)) {
                     const rawNodeId = nodesConfig[dataId];
-                    const accessString = getAccessString(namespace, rawNodeId);
+                    const accessString = `ns=${namespace};s=${rawNodeId}`;
                     const nodeId = resolveNodeId(accessString);
                     this._nodes[dataId] = { dataId, rawNodeId, accessString, nodeId, value: null, onRefresh: null, monitoredItem: null };
                 }
             }
             this._updateMonitoringTimer = null;
             this._running = false;
-            this._connected = false;
+            this._online = false;
             this._subscription = null;
             this._session = null;
             this._client = OPCUAClient.create({
@@ -178,6 +183,7 @@
             this._client.on('after_reconnection', () => this._afterReconnection());
             this._client.on('connection_lost', () => console.log(`TCP connection lost to endpoint url: ${this._endpointUrl}`));
             this._client.on('backoff', (retry, delay) => console.log(`Retry reconnection to endpoint url ${this._endpointUrl}: #${retry} in ${delay} ms`));
+            this._opLevel = ClientOperationLevel.Disconnected;
         }
 
         set OnConnected(value) {
@@ -204,17 +210,35 @@
 
         Start(onSuccess, onError) {
             this._running = true;
+            this._opLevel = ClientOperationLevel.Connecting;
             const tasks = [];
-            tasks.push((onSuc, onErr) => this._connect().then(onSuc).catch(onErr));
+            tasks.push((onSuc, onErr) => this._connect().then(() => {
+                this._opLevel = ClientOperationLevel.Connected;
+                if (!this._running) {
+                    onErr('Not running anymore');
+                } else {
+                    onSuc();
+                }
+            }).catch(onErr));
             tasks.push((onSuc, onErr) => this._client.createSession().then(session => {
                 this._session = session;
+                this._opLevel = ClientOperationLevel.SessionCreated;
                 console.log(`Created OPC UC session on endpoint url: ${this._endpointUrl}`);
-                onSuc();
+                if (!this._running) {
+                    onErr('Not running anymore');
+                } else {
+                    onSuc();
+                }
             }).catch(onErr));
             // Read all required items and store the data type
             tasks.push((onSuc, onErr) => this._initNodesAsync().then(() => {
                 console.log('Initialized nodes');
-                onSuc();
+                this._opLevel = ClientOperationLevel.NodeInitialized;
+                if (!this._running) {
+                    onErr('Not running anymore');
+                } else {
+                    onSuc();
+                }
             }).catch(onErr));
             tasks.push((onSuc, onErr) => {
                 try {
@@ -229,7 +253,12 @@
                     });
                     this._subscription.on('started', () => console.log(`Subscription started - ID: ${this._subscription.subscriptionId}`));
                     this._subscription.on('terminated', () => console.log(`Subscription terminated - ID: ${this._subscription.subscriptionId}`));
-                    onSuc();
+                    this._opLevel = ClientOperationLevel.Subscribed;
+                    if (!this._running) {
+                        onErr('Not running anymore');
+                    } else {
+                        onSuc();
+                    }
                 } catch (error) {
                     onErr(`Faild creating subscription: ${error.message}`);
                 }
@@ -243,12 +272,19 @@
                         console.error(`Failed calling onConnected(): ${error.message}`)
                     }
                 }
-                onSuc();
+                if (!this._running) {
+                    onErr('Not running anymore');
+                } else {
+                    onSuc();
+                }
             });
             Executor.run(tasks,
                 () => console.log(`Successfully started and subscribed OPC UA client to endpoint url: ${this._endpointUrl}`),
-                error => console.error(`Failed starting and subscribing OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`)
-            );
+                error => {
+                    if (this._running) {
+                        console.error(`Failed starting and subscribing OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`);
+                    }
+                });
             // When the OPC UA server does not exist at start of this handler the _connect() call may take long.
             // Therefore in this method we do not wait for completion of the tasks above and call onSuccess immediately. 
             onSuccess();
@@ -263,22 +299,26 @@
                     console.log('Trying to connect...');
                     await this._client.connect(this._endpointUrl);
                     console.log(`Connected to OPC UC client with endpoint url: ${this._endpointUrl}`);
-                    this._connected = true;
+                    this._online = true;
                     return;
                 } catch (error) {
-                    console.log(`Server not available, retrying in ${connectRetryDelay} s...`);
-                    await new Promise(resolve => setTimeout(() => {
-                        if (connectRetryDelay < MAX_TRY_RECONNECT_DELAY) {
-                            connectRetryDelay *= 2;
-                        }
-                        resolve();
-                    }, connectRetryDelay * 1000));
+                    if (this._running) {
+                        console.log(`Server not available, retrying in ${connectRetryDelay} s...`);
+                        await new Promise(resolve => setTimeout(() => {
+                            if (connectRetryDelay < MAX_TRY_RECONNECT_DELAY) {
+                                connectRetryDelay *= 2;
+                            }
+                            resolve();
+                        }, connectRetryDelay * 1000));
+                    } else {
+                        return;
+                    }
                 }
             }
         }
 
         _startReconnection() {
-            this._connected = false;
+            this._online = false;
             console.log(`UPC UA server connection lost to endpoint url: ${this._endpointUrl}`);
             if (this._onDisconnected) {
                 try {
@@ -290,7 +330,7 @@
         }
 
         _afterReconnection() {
-            this._connected = true;
+            this._online = true;
             console.log(`UPC UA server to endpoint url: ${this._endpointUrl} reconnected and everything restored`);
             const tasks = [];
             tasks.push((onSuccess, onError) => this._initNodesAsync().then(onSuccess).catch(error => {
@@ -302,7 +342,7 @@
                 for (const dataId in this._nodes) {
                     if (this._nodes.hasOwnProperty(dataId)) {
                         const node = this._nodes[dataId];
-                        if (node.onRefresh && !node.monitoredItem) {
+                        if (node.onRefresh && !node.monitoredItem) { // TODO: What do we actually check here?
                             toAdd.push(getEstablishMonitoringTask(this._subscription, node));
                         }
                     }
@@ -360,7 +400,7 @@
             this._running = false;
             const tasks = [];
             tasks.push((onSuc, onErr) => {
-                if (this._connected && this._onDisconnected) {
+                if (this._online && this._onDisconnected) {
                     try {
                         this._onDisconnected();
                     } catch (error) {
@@ -369,25 +409,25 @@
                 }
                 onSuc();
             });
-            tasks.push((onSuc, onErr) => {
-                const nodes = this._nodes, terminations = [];
-                for (const dataId in nodes) {
-                    if (nodes.hasOwnProperty(dataId)) {
-                        (function () {
-                            const node = nodes[dataId];
-                            if (node.monitoredItem) {
-                                terminations.push(getTerminateMonitoringTask(node));
-                            }
-                        }());
+            if (this._opLevel >= ClientOperationLevel.Subscribed) {
+                tasks.push((onSuc, onErr) => {
+                    const nodes = this._nodes, terminations = [];
+                    for (const dataId in nodes) {
+                        if (nodes.hasOwnProperty(dataId)) {
+                            (function () {
+                                const node = nodes[dataId];
+                                if (node.monitoredItem) {
+                                    terminations.push(getTerminateMonitoringTask(node));
+                                }
+                            }());
+                        }
                     }
-                }
-                terminations.parallel = true;
-                Executor.run(terminations, onSuc, error => {
-                    console.error(`Failed to un-monitor ${error.message}`);
-                    onSuc();
+                    terminations.parallel = true;
+                    Executor.run(terminations, onSuc, error => {
+                        console.error(`Failed to un-monitor ${error.message}`);
+                        onSuc();
+                    });
                 });
-            });
-            if (this._subscription) {
                 tasks.push((onSuc, onErr) => {
                     this._subscription.terminate().then(() => {
                         this._subscription = null;
@@ -399,7 +439,7 @@
                     });
                 });
             }
-            if (this._session) {
+            if (this._opLevel >= ClientOperationLevel.SessionCreated) {
                 tasks.push((onSuc, onErr) => {
                     this._session.close().then(() => {
                         this._session = null;
@@ -411,12 +451,14 @@
                     });
                 });
             }
-            tasks.push((onSuc, onErr) => {
-                this._client.disconnect().then(onSuc).catch(error => {
-                    console.error(`Failed to disconnect ${error.message}`);
-                    onSuc();
+            if (this._opLevel >= ClientOperationLevel.Connecting) {
+                tasks.push((onSuc, onErr) => {
+                    this._client.disconnect().then(onSuc).catch(error => {
+                        console.error(`Failed to disconnect ${error.message}`);
+                        onSuc();
+                    });
                 });
-            });
+            }
             Executor.run(tasks, () => {
                 console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`);
                 onSuccess();
