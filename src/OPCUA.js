@@ -194,13 +194,9 @@
         toAdd.splice(0, toAdd.length);
     }
 
+    const START_TRY_RECONNECT_DELAY = 2;
+    const MAX_TRY_RECONNECT_DELAY = 32;
     const UPDATE_MONITORING_DELAY = 200;
-
-    const ClientState = Object.freeze({
-        Idle: 0,
-        Connect: 1,
-        WaitForConnection: 2
-    });
 
     class Client {
         constructor(endpointUrl, namespace, nodesConfig) {
@@ -218,37 +214,90 @@
                 endpointMustExist: false, // Do NOT cache and pin the endpoint description from the first successful connection.
                 connectionStrategy: {
                     initialDelay: 1000,
-                    maxRetry: -1       // infinite retry AFTER first connection
+                    maxRetry: -1       // infinite retry AFTER first connection.
                 }
+            });
+            this._client.on("start_reconnection", () => {
+                console.log("Server lost, reconnecting...");
+            });
+            this._client.on("after_reconnection", () => {
+                console.log("Everything restored");
+            });
+            this._client.on("connection_lost", () => {
+                console.log("TCP connection lost");
+            });
+            this._client.on("backoff", (retry, delay) => {
+                console.log(`Retry #${retry} in ${delay}ms`);
             });
             this._session = null;
             this._updateMonitoringTimer = null;
             this._monitoredItems = {};
-            this._state = ClientState.Idle;
+            this._running = false;
         }
 
         Start() {
-            this._state = ClientState.Connect;
+            this._running = true;
+            _start();
         }
 
-        Run() {
-            switch (this._state) {
-                case ClientState.Connect:
-                    this._state = ClientState.WaitForConnection;
+        async _start() {
+            try {
+                console.log(`Connecting OPC UC client to endpoint url: ${this._endpointUrl}`);
+                let connectRetryDelay = START_TRY_RECONNECT_DELAY;
+                while (this._running) {
                     try {
                         console.log('Trying to connect...');
-                        await client.connect(endpointUrl);
+                        await this._client.connect(this._endpointUrl);
                         console.log('Connected!');
                         break;
                     } catch (error) {
-                        console.log('Server not available, retrying in 3s...');
-                        await new Promise(r => setTimeout(r, 3000));
+                        console.log(`Server not available, retrying in ${connectRetryDelay} s...`);
+                        await new Promise(resolve => setTimeout(() => {
+                            if (connectRetryDelay < MAX_TRY_RECONNECT_DELAY) {
+                                connectRetryDelay *= 2;
+                            }
+                            resolve();
+                        }, connectRetryDelay * 1000));
                     }
+                }
+                if (!this._running) {
+                    return;
+                }
+                this._session = await this._client.createSession();
+                console.log('Successfully connected!');
+                await this._initNodes();
+                console.log('Initialized nodes');
 
+            } catch (error) {
+                console.error(`Failed starting OPC UC client: ${error.message}`);
+            }
+        }
+
+        async _initNodes() {
+            for (const dataId in nodes) {
+                if (nodes.hasOwnProperty(dataId)) {
+                    const node = this._nodes[dataId];
+                    try {
+                        const dataValue = await this._session.read({ nodeId: node.nodeId, attributeId: AttributeIds.Value });
+                        if (dataValue.statusCode.name === 'Good') {
+                            node.value = dataValue.value.value;
+                            node.rawType = dataValue.value.dataType;
+                            node.type = getAsCoreDataType(dataValue.value.dataType);
+                        } else {
+                            console.error(`❌ Bad node '${dataId}' status: ${dataValue.statusCode.name}`);
+                        }
+                    } catch (error) {
+                        console.error(`❌ Failed reading node '${dataId}': ${error.message}`);
+                    }
+                }
             }
         }
 
         Stop() {
+            this._running = false;
+        }
+
+        async _stop() {
 
         }
 
