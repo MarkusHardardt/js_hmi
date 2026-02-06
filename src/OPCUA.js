@@ -210,6 +210,11 @@
                     this._nodes[dataId] = { dataId, rawNodeId, accessString, nodeId, value: null, onRefresh: null };
                 }
             }
+            this._updateMonitoringTimer = null;
+            this._monitoredItems = {};
+            this._running = false;
+            this._connected = false;
+            this._session = null;
             this._client = OPCUAClient.create({
                 endpointMustExist: false, // Do NOT cache and pin the endpoint description from the first successful connection.
                 connectionStrategy: {
@@ -218,6 +223,7 @@
                 }
             });
             this._client.on("start_reconnection", () => {
+                this._connected = false;
                 console.log("Server lost, reconnecting...");
             });
             this._client.on("after_reconnection", () => {
@@ -229,18 +235,22 @@
             this._client.on("backoff", (retry, delay) => {
                 console.log(`Retry #${retry} in ${delay}ms`);
             });
-            this._session = null;
-            this._updateMonitoringTimer = null;
-            this._monitoredItems = {};
-            this._running = false;
         }
 
-        Start() {
+        Start(onSuccess, onError) {
             this._running = true;
-            _start();
+            try {
+                this._startAsync()
+                    .then(() => console.log('Successfully started OPC UA client to endpoint url: ${this._endpointUrl}'))
+                    .catch(error => console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error}`));
+                onSuccess();
+            } catch (error) {
+                console.error(`Failed callign _startAsync(): ${error.message}`);
+                onError(error);
+            }
         }
 
-        async _start() {
+        async _startAsync() {
             try {
                 console.log(`Connecting OPC UC client to endpoint url: ${this._endpointUrl}`);
                 let connectRetryDelay = START_TRY_RECONNECT_DELAY;
@@ -265,16 +275,38 @@
                 }
                 this._session = await this._client.createSession();
                 console.log('Successfully connected!');
-                await this._initNodes();
+                this._subscription = ClientSubscription.create(this._session, {
+                    requestedPublishingInterval: 1000,   // ms
+                    requestedLifetimeCount: 100,
+                    requestedMaxKeepAliveCount: 10,
+                    maxNotificationsPerPublish: 100,
+                    publishingEnabled: true,
+                    priority: 10
+                });
+                this._subscription.on('started', () => {
+                    console.log('Subscription started - ID:', this._subscription.subscriptionId);
+                }).on('terminated', () => {
+                    console.log('Subscription terminated');
+                });
+                await this._initNodesAsync();
                 console.log('Initialized nodes');
 
             } catch (error) {
-                console.error(`Failed starting OPC UC client: ${error.message}`);
+                console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`);
             }
         }
 
-        async _initNodes() {
-            for (const dataId in nodes) {
+        async _initNodesAsync() {
+            const nodesToRead = [];
+            for (const dataId in this._nodes) {
+                if (this._nodes.hasOwnProperty(dataId)) {
+                    const node = this._nodes[dataId];
+                    nodesToRead.push({ nodeId: node.nodeId, attributeId: AttributeIds.Value });
+                }
+            }
+            const dataValues = await this._session.read(nodesToRead);
+            console.log(`read nodes: ${JSON.stringify(dataValues, undefined, 4)}`);
+            /* for (const dataId in this._nodes) {
                 if (nodes.hasOwnProperty(dataId)) {
                     const node = this._nodes[dataId];
                     try {
@@ -290,18 +322,43 @@
                         console.error(`❌ Failed reading node '${dataId}': ${error.message}`);
                     }
                 }
+            }*/
+        }
+
+        Stop(onSuccess, onError) {
+            this._running = false;
+            try {
+                this._stopAsync()
+                    .then(() => console.log('Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}'))
+                    .catch(error => console.error(`Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error}`));
+                onSuccess();
+            } catch (error) {
+                console.error(`Failed callign _stopAsync(): ${error.message}`);
+                onError(error);
             }
         }
 
-        Stop() {
-            this._running = false;
+        async _stopAsync() {
+            try {
+                console.log('cleaning up ...');
+                for (const dataId in this._nodes) {
+                    if (this._nodes.hasOwnProperty(dataId)) {
+                        const node = this._nodes[dataId];
+                        if (node.monitoredItem) {
+                            await node.monitoredItem.terminate();
+                        }
+                    }
+                }
+                await this._subscription.terminate();
+                await this._session.close();
+                await this._client.disconnect();
+                console.log('cleanup done');
+            } catch (error) {
+                console.error(`Failed stopping OPC UC client: ${error.message}`);
+            }
         }
 
-        async _stop() {
-
-        }
-
-        Initialize(onSuccess, onError) { // TODO: This must noch be called in build, apply, prepare or start because of connecting attemts at startup
+        _Initialize_DEPRECATED(onSuccess, onError) { // TODO: This must noch be called in build, apply, prepare or start because of connecting attemts at startup
             const tasks = [];
             tasks.push((onSuc, onErr) => startOpcuaClientAsync(this._client, this._endpointUrl, this._nodes).then(session => {
                 this._session = session;
