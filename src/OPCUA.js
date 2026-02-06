@@ -349,7 +349,7 @@
                             node.value = null;
                             node.rawType = DataType.Null;
                             node.type = getAsCoreDataType(DataType.Null);
-                            console.error(`❌ Bad node '${dataId}' status: ${dataValue.statusCode.name}`);
+                            console.error(`Bad node '${dataId}' status: ${dataValue.statusCode.name}`);
                         }
                     }
                 }
@@ -512,24 +512,21 @@
                 throw new Error(`Unknown data id: '${dataId}'`);
             }
             try {
-                this._session.read({
-                    nodeId: node.nodeId,
-                    attributeId: AttributeIds.Value
-                }).then(dataValue => {
+                this._session.read({ nodeId: node.nodeId, attributeId: AttributeIds.Value }).then(dataValue => {
                     if (dataValue.statusCode.name === 'Good') {
                         const value = dataValue.value.value;
-                        console.log(`✅ Value ${value} read from node '${node.rawNodeId}'`);
+                        console.log(`Value ${value} read from node '${node.rawNodeId}'`);
                         onResponse(value);
                     } else {
                         console.error(`⚠️  NodeId ${node.nodeId} exists, but status: ${dataValue.statusCode.name}`);
                     }
                 }).catch(error => {
-                    console.error(`❌ Cannot read from node ${node.rawNodeId}: ${error.message}`);
+                    console.error(`Cannot read from node ${node.rawNodeId}: ${error.message}`);
                     onError(`Cannot read from node ${node.rawNodeId}: ${error.message}`);
                 });
             } catch (error) {
-                console.error(`❌ NodeId ${nodeId} could not be read: ${error.message}`);
-                onError(`NodeId ${nodeId} could not be read: ${error.message}`);
+                console.error(`NodeId ${node.rawNodeId} could not be read: ${error.message}`);
+                onError(`NodeId ${node.rawNodeId} could not be read: ${error.message}`);
             }
         }
 
@@ -539,16 +536,11 @@
                 throw new Error(`Unknown data id '${dataId}' fro write`);
             }
             try {
-                this._session.writeSingleNode(
-                    node.accessString,
-                    { dataType: node.rawType, value }
-                ).then(() => {
-                    console.log(`✅ Value ${value} written to node '${node.rawNodeId}'`);
-                }).catch(error => {
-                    console.error(`❌ Cannot write value ${value} to node ${node.rawNodeId}: ${error.message}`);
-                });
+                this._session.writeSingleNode(node.accessString, { dataType: node.rawType, value })
+                    .then(() => console.log(`Value ${value} written to node '${node.rawNodeId}'`))
+                    .catch(error => console.error(`Cannot write value ${value} to node ${node.rawNodeId}: ${error.message}`));
             } catch (error) {
-                console.error(`❌ NodeId ${node.rawNodeId} could not be written: ${error.message}`);
+                console.error(`NodeId ${node.rawNodeId} could not be written: ${error.message}`);
             }
         }
 
@@ -556,10 +548,7 @@
             const dataPoints = [];
             for (const dataId in this._nodes) {
                 if (this._nodes.hasOwnProperty(dataId)) {
-                    const node = this._nodes[dataId];
-                    if (typeof node.type === 'number') {
-                        dataPoints.push({ id: dataId, type: node.type });
-                    }
+                    dataPoints.push({ id: dataId, type: this._nodes[dataId].type });
                 }
             }
             return dataPoints;
