@@ -93,17 +93,10 @@
             })
         ));
         Here it makes a difference which one to use because we need the returned mi to add to our collection.  */
-    function getEstablishMonitoredItemTask(subscription, node) {
+    function getEstablishMonitoringTask(subscription, node) {
         return (onSuccess, onError) => subscription.monitor(
-            {
-                nodeId: node.nodeId,
-                attributeId: AttributeIds.Value
-            },
-            {
-                samplingInterval: 500,  // ms
-                discardOldest: true,
-                queueSize: 10
-            },
+            { nodeId: node.nodeId, attributeId: AttributeIds.Value },
+            { samplingInterval: 500, discardOldest: true, queueSize: 10 },
             TimestampsToReturn.Both // TODO: Required?
         ).then(monitoredItem => {
             console.log(`Monitored id '${node.dataId}'`);
@@ -138,7 +131,7 @@
             await mi.terminate();
         }));
         Here it makes no difference which one to use.  */
-    function getTerminateMonitoredItemTask(node) {
+    function getTerminateMonitoringTask(node) {
         return (onSuccess, onError) => node.monitoredItem.terminate().then(() => {
             node.monitoredItem = null;
             console.log(`Un-monitored id '${node.dataId}'`);
@@ -164,11 +157,10 @@
                     const rawNodeId = nodesConfig[dataId];
                     const accessString = getAccessString(namespace, rawNodeId);
                     const nodeId = resolveNodeId(accessString);
-                    this._nodes[dataId] = { dataId, rawNodeId, accessString, nodeId, value: null, onRefresh: null };
+                    this._nodes[dataId] = { dataId, rawNodeId, accessString, nodeId, value: null, onRefresh: null, monitoredItem: null };
                 }
             }
             this._updateMonitoringTimer = null;
-            this._monitoredItems = {};
             this._running = false;
             this._connected = false;
             this._subscription = null;
@@ -182,30 +174,8 @@
             });
             this._onConnected = null;
             this._onDisconnected = null;
-            this._client.on('start_reconnection', () => {
-                this._connected = false;
-                console.log(`UPC UA server connection lost to endpoint url: ${this._endpointUrl}`);
-                if (this._onDisconnected) {
-                    try {
-                        this._onDisconnected();
-                    } catch (error) {
-                        console.error(`Failed calling onDisonnected(): ${error.message}`)
-                    }
-                }
-            });
-            this._client.on('after_reconnection', () => {
-                this._connected = true;
-                console.log(`UPC UA server to endpoint url: ${this._endpointUrl} reconnected and everything restored`);
-                this._initNodesAsync().then(() => {
-                    if (this._onConnected) {
-                        try {
-                            this._onConnected();
-                        } catch (error) {
-                            console.error(`Failed calling onConnected(): ${error.message}`)
-                        }
-                    }
-                }).catch(error => console.error(`Failed init nodes: ${error.message}`));
-            });
+            this._client.on('start_reconnection', () => this._startReconnection());
+            this._client.on('after_reconnection', () => this._afterReconnection());
             this._client.on('connection_lost', () => console.log(`TCP connection lost to endpoint url: ${this._endpointUrl}`));
             this._client.on('backoff', (retry, delay) => console.log(`Retry reconnection to endpoint url ${this._endpointUrl}: #${retry} in ${delay} ms`));
         }
@@ -276,9 +246,11 @@
                 onSuc();
             });
             Executor.run(tasks,
-                () => console.log(`Successfully started OPC UA client to endpoint url: ${this._endpointUrl}`),
-                error => console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`)
+                () => console.log(`Successfully started and subscribed OPC UA client to endpoint url: ${this._endpointUrl}`),
+                error => console.error(`Failed starting and subscribing OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`)
             );
+            // When the OPC UA server does not exist at start of this handler the _connect() call may take long.
+            // Therefore in this method we do not wait for completion of the tasks above and call onSuccess immediately. 
             onSuccess();
         }
 
@@ -305,6 +277,55 @@
             }
         }
 
+        _startReconnection() {
+            this._connected = false;
+            console.log(`UPC UA server connection lost to endpoint url: ${this._endpointUrl}`);
+            if (this._onDisconnected) {
+                try {
+                    this._onDisconnected();
+                } catch (error) {
+                    console.error(`Failed calling onDisonnected(): ${error.message}`)
+                }
+            }
+        }
+
+        _afterReconnection() {
+            this._connected = true;
+            console.log(`UPC UA server to endpoint url: ${this._endpointUrl} reconnected and everything restored`);
+            const tasks = [];
+            tasks.push((onSuccess, onError) => this._initNodesAsync().then(onSuccess).catch(error => {
+                console.error(`Failed init nodes: ${error.message}`);
+                onError();
+            }));
+            tasks.push((onSuccess, onError) => {
+                const toAdd = [];
+                for (const dataId in this._nodes) {
+                    if (this._nodes.hasOwnProperty(dataId)) {
+                        const node = this._nodes[dataId];
+                        if (node.onRefresh && !node.monitoredItem) {
+                            toAdd.push(getEstablishMonitoringTask(this._subscription, node));
+                        }
+                    }
+                }
+                toAdd.parallel = true;
+                Executor.run(toAdd, onSuccess, onError);
+            });
+            tasks.push((onSuccess, onError) => {
+                if (this._onConnected) {
+                    try {
+                        this._onConnected();
+                    } catch (error) {
+                        console.error(`Failed calling onConnected(): ${error.message}`)
+                    }
+                }
+                onSuccess();
+            });
+            Executor.run(tasks,
+                () => console.log(`Successfully updated after reconnection OPC UA client to endpoint url: ${this._endpointUrl}`),
+                error => console.error(`Failed updating after reconnection OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`)
+            );
+        }
+
         async _initNodesAsync() {
             if (this._session) {
                 const nodesToRead = [];
@@ -326,8 +347,8 @@
                             node.type = getAsCoreDataType(dataValue.value.dataType);
                         } else {
                             node.value = null;
-                            node.rawType = null;
-                            node.type = null;
+                            node.rawType = DataType.Null;
+                            node.type = getAsCoreDataType(DataType.Null);
                             console.error(`❌ Bad node '${dataId}' status: ${dataValue.statusCode.name}`);
                         }
                     }
@@ -355,7 +376,7 @@
                         (function () {
                             const node = nodes[dataId];
                             if (node.monitoredItem) {
-                                terminations.push(getTerminateMonitoredItemTask(node));
+                                terminations.push(getTerminateMonitoringTask(node));
                             }
                         }());
                     }
@@ -419,6 +440,13 @@
                 console.error(`Node with data id: '${dataId}' is already subscribed with same onRefresh(value) callback`);
             } else {
                 node.onRefresh = onRefresh;
+                if (node.value !== null) {
+                    try {
+                        onRefresh(node.value);
+                    } catch (error) {
+                        console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
+                    }
+                }
                 if (this._subscription && !this._updateMonitoringTimer) {
                     this._updateMonitoringTimer = setTimeout(() => {
                         this._updateMonitoringTimer = null;
@@ -452,14 +480,12 @@
                     if (this._nodes.hasOwnProperty(dataId)) {
                         const node = this._nodes[dataId];
                         if (node.onRefresh) {
-                            if (this._monitoredItems[dataId] === undefined) {
-                                this._monitoredItems[dataId] = true;
-                                toAdd.push(getEstablishMonitoredItemTask(this._subscription, node));
+                            if (!node.monitoredItem) {
+                                toAdd.push(getEstablishMonitoringTask(this._subscription, node));
                             }
                         } else {
-                            if (this._monitoredItems[dataId] === true) {
-                                delete this._monitoredItems[dataId];
-                                toRemove.push(getTerminateMonitoredItemTask(node));
+                            if (node.monitoredItem) {
+                                toRemove.push(getTerminateMonitoringTask(node));
                             }
                         }
                     }
@@ -474,8 +500,8 @@
                     tasks.push((onSuccess, onError) => Executor.run(toAdd, onSuccess, error => onSuccess()));
                 }
                 Executor.run(tasks,
-                    () => console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`),
-                    error => console.error(`Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`)
+                    () => console.log(`Successfully removed ${toRemove.length} and added ${toAdd.length} monitoring items on OPC UA client with endpoint url: ${this._endpointUrl}`),
+                    error => console.error(`Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UC client with endpoint url ${this._endpointUrl}: ${error.message}`)
                 );
             }
         }
@@ -522,7 +548,7 @@
                     console.error(`❌ Cannot write value ${value} to node ${node.rawNodeId}: ${error.message}`);
                 });
             } catch (error) {
-                console.error(`❌ NodeId ${accessString} could not be written: ${error.message}`);
+                console.error(`❌ NodeId ${node.rawNodeId} could not be written: ${error.message}`);
             }
         }
 
