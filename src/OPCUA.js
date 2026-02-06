@@ -178,9 +178,9 @@
             });
             this._onConnected = null;
             this._onDisconnected = null;
-            this._client.on("start_reconnection", () => {
+            this._client.on('start_reconnection', () => {
                 this._connected = false;
-                console.log("Server lost, reconnecting...");
+                console.log('### ==> Server lost, reconnecting...');
                 if (this._onDisconnected) {
                     try {
                         this._onDisconnected();
@@ -189,24 +189,24 @@
                     }
                 }
             });
-            this._client.on("after_reconnection", () => {
+            this._client.on('after_reconnection', () => {
                 this._connected = true;
-                console.log("Everything restored");
+                console.log('### ==> Everything restored');
                 this._initNodesAsync().then(() => {
                     if (this._onConnected) {
                         try {
                             this._onConnected();
                         } catch (error) {
-                            console.error(`Failed calling onCnnected(): ${error.message}`)
+                            console.error(`Failed calling onConnected(): ${error.message}`)
                         }
                     }
                 });
             });
-            this._client.on("connection_lost", () => {
-                console.log("TCP connection lost");
+            this._client.on('connection_lost', () => {
+                console.log('### ==> TCP connection lost');
             });
-            this._client.on("backoff", (retry, delay) => {
-                console.log(`Retry #${retry} in ${delay}ms`);
+            this._client.on('backoff', (retry, delay) => {
+                console.log(`### ==> Retry #${retry} in ${delay}ms`);
             });
         }
 
@@ -236,8 +236,8 @@
             this._running = true;
             try {
                 this._startAsync()
-                    .then(() => console.log('Successfully started OPC UA client to endpoint url: ${this._endpointUrl}'))
-                    .catch(error => console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error}`));
+                    .then(() => console.log(`Successfully started OPC UA client to endpoint url: ${this._endpointUrl}`))
+                    .catch(error => console.error(`Failed starting OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`));
                 onSuccess();
             } catch (error) {
                 console.error(`Failed callign _startAsync(): ${error.message}`);
@@ -253,7 +253,7 @@
                     try {
                         console.log('Trying to connect...');
                         await this._client.connect(this._endpointUrl);
-                        console.log('Connected!');
+                        this._connected = true;
                         break;
                     } catch (error) {
                         console.log(`Server not available, retrying in ${connectRetryDelay} s...`);
@@ -265,15 +265,17 @@
                         }, connectRetryDelay * 1000));
                     }
                 }
-                if (!this._running) {
+                if (!this._running || !this._connected) {
                     return;
                 }
                 this._session = await this._client.createSession();
-                console.log('Successfully connected!');
+                console.log(`Connected to OPC UC client with endpoint url: ${this._endpointUrl}`);
+                await this._initNodesAsync();
+                console.log('Initialized nodes');
                 this._subscription = ClientSubscription.create(this._session, {
                     requestedPublishingInterval: 1000,   // ms
                     requestedLifetimeCount: 100,
-                    requestedMaxKeepAliveCount: 10,
+                    requestedMaxKeepAliveCount: 5,
                     maxNotificationsPerPublish: 100,
                     publishingEnabled: true,
                     priority: 10
@@ -283,13 +285,11 @@
                 }).on('terminated', () => {
                     console.log('Subscription terminated');
                 });
-                await this._initNodesAsync();
-                console.log('Initialized nodes');
                 if (this._onConnected) {
                     try {
                         this._onConnected();
                     } catch (error) {
-                        console.error(`Failed calling onCnnected(): ${error.message}`)
+                        console.error(`Failed calling onConnected(): ${error.message}`)
                     }
                 }
             } catch (error) {
@@ -335,10 +335,10 @@
             }
             try {
                 this._stopAsync().then(() => {
-                    console.log('Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}');
+                    console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`);
                     onSuccess();
                 }).catch(error => {
-                    console.error(`Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error}`);
+                    console.error(`Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`);
                     onError(error);
                 });
                 onSuccess();
