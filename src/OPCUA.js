@@ -142,7 +142,7 @@
 
     const START_TRY_RECONNECT_DELAY = 2;
     const MAX_TRY_RECONNECT_DELAY = 32;
-    const UPDATE_MONITORING_DELAY = 200;
+    const UPDATE_MONITORING_DELAY = 50;
 
     const ClientOperationLevel = Object.freeze({
         Disconnected: 0,
@@ -491,8 +491,7 @@
                 }
                 if (this._subscription && !this._updateMonitoringTimer) {
                     this._updateMonitoringTimer = setTimeout(() => {
-                        this._updateMonitoringTimer = null;
-                        this._updateMonitoring();
+                        this._updateMonitoring(() => this._updateMonitoringTimer = null, error => this._updateMonitoringTimer = null);
                     }, UPDATE_MONITORING_DELAY);
                 }
             }
@@ -508,14 +507,13 @@
                 node.onRefresh = null;
                 if (this._subscription && !this._updateMonitoringTimer) {
                     this._updateMonitoringTimer = setTimeout(() => {
-                        this._updateMonitoringTimer = null;
-                        this._updateMonitoring();
+                        this._updateMonitoring(() => this._updateMonitoringTimer = null, error => this._updateMonitoringTimer = null);
                     }, UPDATE_MONITORING_DELAY);
                 }
             }
         }
 
-        _updateMonitoring() {
+        _updateMonitoring(onSuccess, onError) {
             if (this._subscription) {
                 const toAdd = [], toRemove = [];
                 for (const dataId in this._nodes) {
@@ -535,16 +533,20 @@
                 const tasks = [];
                 if (toRemove.length > 0) {
                     toRemove.parallel = true;
-                    tasks.push((onSuccess, onError) => Executor.run(toRemove, onSuccess, error => onSuccess()));
+                    tasks.push((onSuc, onErr) => Executor.run(toRemove, onSuc, error => onSuc()));
                 }
                 if (toAdd.length > 0) {
                     toAdd.parallel = true;
-                    tasks.push((onSuccess, onError) => Executor.run(toAdd, onSuccess, error => onSuccess()));
+                    tasks.push((onSuc, onErr) => Executor.run(toAdd, onSuc, error => onSuc()));
                 }
-                Executor.run(tasks,
-                    () => console.log(`Successfully removed ${toRemove.length} and added ${toAdd.length} monitoring items on OPC UA client with endpoint url: ${this._endpointUrl}`),
-                    error => console.error(`Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UC client with endpoint url ${this._endpointUrl}: ${error.message}`)
-                );
+                Executor.run(tasks, () => {
+                    console.log(`Successfully removed ${toRemove.length} and added ${toAdd.length} monitoring items on OPC UA client with endpoint url: ${this._endpointUrl}`);
+                    onSuccess();
+                }, error => {
+                    const message = `Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UC client with endpoint url ${this._endpointUrl}: ${error.message}`;
+                    console.error(message);
+                    onError(message);
+                });
             }
         }
 
