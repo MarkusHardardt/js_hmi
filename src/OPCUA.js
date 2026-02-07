@@ -130,11 +130,11 @@
     function getTerminateMonitoringTask(node) {
         return (onSuccess, onError) => node.monitoredItem.terminate().then(() => {
             node.monitoredItem = null;
-            console.log(`Un-monitored id '${node.dataId}'`);
+            console.log(`Terminated monitoring '${node.dataId}'`);
             onSuccess();
         }).catch(error => {
             node.monitoredItem = null;
-            const message = `Failed to un-monitor '${node.dataId}': ${error.message}`;
+            const message = `Failed to terminated monitoring '${node.dataId}': ${error.message}`;
             console.error(message);
             onError(message);
         });
