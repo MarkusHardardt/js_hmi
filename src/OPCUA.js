@@ -98,12 +98,14 @@
             console.log(`Monitored id '${node.dataId}'`);
             node.monitoredItem = monitoredItem;
             monitoredItem.on('changed', dataValue => {
-                const value = dataValue.value.value;
-                console.log(`Value of node with id '${node.dataId}' changed: ${value}`);
-                try {
-                    node.onRefresh(value);
-                } catch (error) {
-                    console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
+                node.value = dataValue.value.value;
+                console.log(`Value of node with id '${node.dataId}' changed: ${node.value}`);
+                if (node.value !== null) {
+                    try {
+                        node.onRefresh(node.value);
+                    } catch (error) {
+                        console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
+                    }
                 }
             });
             onSuccess();
