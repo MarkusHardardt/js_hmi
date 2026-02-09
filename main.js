@@ -241,10 +241,10 @@
         }
     });
 
-    tasks.push((onSuccess, onError) => { // TODO: Replace with individual task cycles
+    /* tasks.push((onSuccess, onError) => { // TODO: Replace with individual task cycles
         Server.startRefreshCycle(config.serverCycleMillis, () => ObjectLifecycleManager.refresh(new Date()));
         onSuccess();
-    });
+    }); */
 
     tasks.push((onSuccess, onError) => taskManager.Initialize(onSuccess, onError));
 
