@@ -40,9 +40,9 @@
     // create 'hmi' environment object
     const hmi = {
         // add hmi-object-framweork
-        create: (object, element, onSuccess, onError, initData) =>
-            ObjectLifecycleManager.create(object, element, onSuccess, onError, hmi, initData),
-        kill: ObjectLifecycleManager.kill,
+        createObject: (object, element, onSuccess, onError, initData) =>
+            ObjectLifecycleManager.createObject(object, element, onSuccess, onError, hmi, initData),
+        killObject: ObjectLifecycleManager.killObject,
         utils: {
             Executor,
             HashLists,
@@ -240,11 +240,6 @@
             onError(error);
         }
     });
-
-    /* tasks.push((onSuccess, onError) => { // TODO: Replace with individual task cycles
-        Server.startRefreshCycle(config.serverCycleMillis, () => ObjectLifecycleManager.refresh(new Date()));
-        onSuccess();
-    }); */
 
     tasks.push((onSuccess, onError) => taskManager.Initialize(onSuccess, onError));
 

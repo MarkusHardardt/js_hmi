@@ -56,22 +56,27 @@
     OPCUA.getAsCoreDataType = getAsCoreDataType;
 
     const keyValueRegex = /^([_a-z0-9]+);(.+)$/i;
+
+    function getKeysAndValues(text) {
+        const result = {};
+        const lines = text.split(Regex.Linebreaks);
+        for (const line of lines) {
+            const match = keyValueRegex.exec(line);
+            if (match) {
+                const key = match[1];
+                if (result[key] !== undefined) {
+                    throw new Error(`Duplicate key found: '${key}'`);
+                }
+                result[key] = match[2];
+            }
+        }
+        return result;
+    }
+    OPCUA.getKeysAndValues = getKeysAndValues;
+
     function loadKeysAndValuesFromCSVFile(file, onSuccess, onError) {
         try {
-            const result = {};
-            const lines = fs.readFileSync(file, 'utf8').split(Regex.Linebreaks);
-            for (const line of lines) {
-                const match = keyValueRegex.exec(line);
-                if (match) {
-                    const key = match[1];
-                    if (result[key] !== undefined) {
-                        onError(`Duplicate key found: '${key}'`);
-                        return;
-                    }
-                    result[key] = match[2];
-                }
-            }
-            onSuccess(result);
+            onSuccess(getKeysAndValues(fs.readFileSync(file, 'utf8')));
         } catch (error) {
             onError(`Failed reading csv file '${file}': '${error.message}'`);
         }
