@@ -55,7 +55,7 @@
     }
     OPCUA.getAsCoreDataType = getAsCoreDataType;
 
-    const keyValueRegex = /^([_a-z0-9]+);(.+)$/i;
+    const keyValueRegex = /^([_a-z0-9]+(?:[./][_a-z0-9]+)*);(.+)$/i;
 
     function getKeysAndValues(text) {
         const result = {};
