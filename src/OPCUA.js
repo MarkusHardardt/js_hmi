@@ -68,6 +68,8 @@
                     throw new Error(`Duplicate key found: '${key}'`);
                 }
                 result[key] = match[2];
+            } else if (line.length > 0) {
+                throw new Error(`Invalid line: '${line}'`);
             }
         }
         return result;
@@ -230,7 +232,7 @@
             tasks.push((onSuc, onErr) => this._client.createSession().then(session => {
                 this._session = session;
                 this._opLevel = ClientOperationLevel.SessionCreated;
-                console.log(`Created OPC UC session on endpoint url: ${this._endpointUrl}`);
+                console.log(`Created OPC UA session on endpoint url: ${this._endpointUrl}`);
                 if (!this._running) {
                     onErr('Not running anymore');
                 } else {
@@ -289,7 +291,7 @@
                 () => console.log(`Successfully started and subscribed OPC UA client to endpoint url: ${this._endpointUrl}`),
                 error => {
                     if (this._running) {
-                        console.error(`Failed starting and subscribing OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`);
+                        console.error(`Failed starting and subscribing OPC UA client to endpoint url ${this._endpointUrl}: ${error.message}`);
                     }
                 });
             // When the OPC UA server does not exist at start of this handler the _connect() call may take long.
@@ -299,13 +301,13 @@
 
         async _connect() {
             // Start connect loop to OPC UA server (loop because the server might not be alive at the moment)
-            console.log(`Connecting OPC UC client to endpoint url: ${this._endpointUrl}`);
+            console.log(`Connecting OPC UA client to endpoint url: ${this._endpointUrl}`);
             let connectRetryDelay = START_TRY_RECONNECT_DELAY;
             while (this._running) {
                 try {
                     console.log('Trying to connect...');
                     await this._client.connect(this._endpointUrl);
-                    console.log(`Connected to OPC UC client with endpoint url: ${this._endpointUrl}`);
+                    console.log(`Connected to OPC UA client with endpoint url: ${this._endpointUrl}`);
                     this._online = true;
                     return;
                 } catch (error) {
@@ -369,7 +371,7 @@
             });
             Executor.run(tasks,
                 () => console.log(`Successfully updated after reconnection OPC UA client to endpoint url: ${this._endpointUrl}`),
-                error => console.error(`Failed updating after reconnection OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`)
+                error => console.error(`Failed updating after reconnection OPC UA client to endpoint url ${this._endpointUrl}: ${error.message}`)
             );
         }
 
@@ -470,7 +472,7 @@
                 console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`);
                 onSuccess();
             }, error => {
-                const message = `Failed stopping OPC UC client to endpoint url ${this._endpointUrl}: ${error.message}`;
+                const message = `Failed stopping OPC UA client to endpoint url ${this._endpointUrl}: ${error.message}`;
                 console.error(message);
                 onError(message);
             });
@@ -550,7 +552,7 @@
                     console.log(`Successfully removed ${toRemove.length} and added ${toAdd.length} monitoring items on OPC UA client with endpoint url: ${this._endpointUrl}`);
                     onSuccess();
                 }, error => {
-                    const message = `Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UC client with endpoint url ${this._endpointUrl}: ${error.message}`;
+                    const message = `Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UA client with endpoint url ${this._endpointUrl}: ${error.message}`;
                     console.error(message);
                     onError(message);
                 });
