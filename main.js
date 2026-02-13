@@ -154,7 +154,7 @@
     const dataAccessRouterHandler = new DataPoint.AccessRouterHandler();
     hmi.env.router = dataAccessRouterHandler;
     // Setting up
-    const dataAccessRouter = new DataPoint.Router();
+    const dataAccessRouter = new DataPoint.AccessRouter();
     dataAccessRouter.GetDataAccessObject = dataAccessRouterHandler.GetDataAccessObject;
     // Setting up
     const dataAccessPoint = new DataPoint.AccessPoint();
