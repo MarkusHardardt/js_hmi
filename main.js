@@ -205,8 +205,8 @@
                     dataConnector.SubscribeDelay = config.subscribeDelay;
                     dataConnector.UnsubscribeDelay = config.unsubscribeDelay;
                     dataConnectors[connection.SessionId] = dataConnector;
-                    dataConnector.OnOpen();
                     dataAccessRouterHandler.RegisterDataConnector(dataConnector);
+                    dataConnector.OnOpen();
                 },
                 OnReopen: connection => {
                     console.log(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
