@@ -196,7 +196,7 @@
         }
 
         set OnConnected(value) {
-            if (value !== null) {
+            if (value !== undefined && value !== null) {
                 if (typeof value !== 'function') {
                     throw new Error('onConnected() is not a function');
                 }
@@ -207,7 +207,7 @@
         }
 
         set OnDisconnected(value) {
-            if (value !== null) {
+            if (value !== undefined && value !== null) {
                 if (typeof value !== 'function') {
                     throw new Error('onDisonnected() is not a function');
                 }
