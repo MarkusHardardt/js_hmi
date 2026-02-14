@@ -198,7 +198,7 @@
                 OnOpen: connection => {
                     console.log(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
                     taskManager.OnOpen(connection);
-                    const dataConnector = new DataConnector.ServerConnector();
+                    const dataConnector = DataConnector.getInstance();
                     dataConnector.Source = dataAccessPoint;
                     dataConnector.Connection = connection;
                     dataConnector.SendDelay = config.sendDelay;
@@ -210,9 +210,9 @@
                 },
                 OnReopen: connection => {
                     console.log(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    taskManager.OnReopen(connection);
+                    taskManager.OnOpen(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
-                    dataConnector.OnReopen();
+                    dataConnector.OnOpen();
                     dataAccessRouterHandler.RegisterDataConnector(dataConnector);
                 },
                 OnClose: connection => {
@@ -224,7 +224,7 @@
                 },
                 OnDispose: connection => {
                     console.log(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    taskManager.OnDispose(connection);
+                    taskManager.OnClose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnDispose();
                     delete dataConnectors[connection.SessionId];
