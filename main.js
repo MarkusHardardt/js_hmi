@@ -136,7 +136,7 @@
     // deliver main config to client
     webServer.Post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
-        unsubscribeDelay: config.unsubscribeDelay
+        accessPointUnsubscribeDelay: config.clientAccessPointUnsubscribeDelay
     }, false)));
     // prepare content management system
     // we need the handler for database access
@@ -158,7 +158,7 @@
     dataAccessRouter.GetDataAccessObject = dataAccessRouterHandler.GetDataAccessObject;
     // Setting up
     const dataAccessPoint = new DataPoint.AccessPoint();
-    dataAccessPoint.UnsubscribeDelay = config.unsubscribeDelay;
+    dataAccessPoint.UnsubscribeDelay = config.serverAccessPointUnsubscribeDelay;
     dataAccessPoint.Source = dataAccessRouter; // Use the router as source
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
     // Add static finels
@@ -201,9 +201,9 @@
                     const dataConnector = DataConnector.getInstance();
                     dataConnector.Source = dataAccessPoint;
                     dataConnector.Connection = connection;
-                    dataConnector.SendDelay = config.sendDelay;
-                    dataConnector.SubscribeDelay = config.subscribeDelay;
-                    dataConnector.UnsubscribeDelay = config.unsubscribeDelay;
+                    dataConnector.SendDelay = config.dataConnectorSendDelay;
+                    dataConnector.SubscribeDelay = config.dataConnectorSubscribeDelay;
+                    dataConnector.UnsubscribeDelay = config.dataConnectorUnsubscribeDelay;
                     dataConnectors[connection.SessionId] = dataConnector;
                     dataAccessRouterHandler.RegisterDataConnector(dataConnector);
                     dataConnector.OnOpen();
@@ -226,7 +226,7 @@
                     console.log(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
                     taskManager.OnClose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
-                    dataConnector.OnDispose();
+                    dataConnector.OnClose();
                     delete dataConnectors[connection.SessionId];
                     dataConnector.Connection = null;
                     dataConnector.Source = null;
