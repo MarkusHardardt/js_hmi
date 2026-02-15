@@ -160,7 +160,12 @@
     const dataAccessPoint = new DataPoint.AccessPoint();
     dataAccessPoint.UnsubscribeDelay = config.serverAccessPointUnsubscribeDelay;
     dataAccessPoint.Source = dataAccessRouter; // Use the router as source
+    if (typeof config.serverAccessPointUnsubscribeDelay === 'number' && config.serverAccessPointUnsubscribeDelay > 0) {
+        dataAccessRouterHandler.OnBeforeUpdateDataConnectors = () => dataAccessPoint.UnsubscribeDelay = false;
+        dataAccessRouterHandler.OnAfterUpdateDataConnectors = () => dataAccessPoint.UnsubscribeDelay = config.serverAccessPointUnsubscribeDelay;
+    }
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
+
     // Add static finels
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
