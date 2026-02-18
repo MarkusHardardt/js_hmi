@@ -139,7 +139,7 @@
     // deliver main config to client
     webServer.Post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
-        accessPointUnsubscribeDelay: config.clientAccessPointUnsubscribeDelay
+        accessPointUnsubscribeDelay: config.clientAccessPointRemoveObserverDelay
     }, false)));
     // prepare content management system
     // we need the handler for database access
@@ -149,23 +149,21 @@
     const contentManager = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
     hmi.env.cms = contentManager;
     contentManager.RegisterOnWebServer(webServer);
-    // Setting up task manager
+    // Set up task manager
     const taskManager = TaskManager.getInstance(hmi);
     hmi.env.tasks = taskManager;
     contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.OnTasksChanged);
-    // Setting up
+    // Set up the handler for routing to individual target systems
     const dataAccessRouterHandler = new DataPoint.AccessRouterHandler(hmi.env.logger);
     hmi.env.router = dataAccessRouterHandler;
-    // Setting up
-    const dataAccessRouter = new DataPoint.AccessRouter();
-    dataAccessRouter.GetDataAccessObject = dataAccessRouterHandler.GetDataAccessObject;
-    // Setting up
-    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger);
-    dataAccessPoint.UnsubscribeDelay = config.serverAccessPointUnsubscribeDelay;
-    dataAccessPoint.Source = dataAccessRouter; // Use the router as source
-    if (typeof config.serverAccessPointUnsubscribeDelay === 'number' && config.serverAccessPointUnsubscribeDelay > 0) {
-        dataAccessRouterHandler.OnBeforeUpdateDataConnectors = () => dataAccessPoint.UnsubscribeDelay = false;
-        dataAccessRouterHandler.OnAfterUpdateDataConnectors = () => dataAccessPoint.UnsubscribeDelay = config.serverAccessPointUnsubscribeDelay;
+    // Set up a simple router using the target system router
+    const dataAccessRouter = new DataPoint.AccessRouter(dataAccessRouterHandler.GetDataAccessObject); // Use the access router handler as source
+    // Set up the server side access point
+    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessRouter); // Use the router as source
+    dataAccessPoint.RemoveObserverDelay = config.serverAccessPointRemoveObserverDelay;
+    if (typeof config.serverAccessPointRemoveObserverDelay === 'number' && config.serverAccessPointRemoveObserverDelay > 0) {
+        dataAccessRouterHandler.OnBeforeUpdateDataConnectors = () => dataAccessPoint.RemoveObserverDelay = false;
+        dataAccessRouterHandler.OnAfterUpdateDataConnectors = () => dataAccessPoint.RemoveObserverDelay = config.serverAccessPointRemoveObserverDelay;
     }
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
 
@@ -210,8 +208,8 @@
                     dataConnector.Source = dataAccessPoint;
                     dataConnector.Connection = connection;
                     dataConnector.SendDelay = config.dataConnectorSendDelay;
-                    dataConnector.SubscribeDelay = config.dataConnectorSubscribeDelay;
-                    dataConnector.UnsubscribeDelay = config.dataConnectorUnsubscribeDelay;
+                    dataConnector.SubscribeDelay = config.dataConnectorAddObserverDelay;
+                    dataConnector.RemoveObserverDelay = config.dataConnectorRemoveObserverDelay;
                     dataConnectors[connection.SessionId] = dataConnector;
                     dataAccessRouterHandler.RegisterDataConnector(dataConnector);
                     dataConnector.OnOpen();
