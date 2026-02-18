@@ -170,8 +170,8 @@
     // Add static finels
     function addStaticFiles(file) {
         if (Array.isArray(file)) {
-            for (var i = 0, l = file.length; i < l; i++) {
-                addStaticFiles(file[i]);
+            for (const f of file) {
+                addStaticFiles(f);
             }
         } else if (typeof file === 'string' && file.length > 0) {
             webServer.AddStaticFile(file);
@@ -202,43 +202,43 @@
                 autoConnect: config.autoConnect,
                 closedConnectionDisposeTimeout: config.closedConnectionDisposeTimeout,
                 OnOpen: connection => {
-                    hmi.env.logger.Info(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    taskManager.OnOpen(connection);
+                    hmi.env.logger.info(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    taskManager.onOpen(connection);
                     const dataConnector = DataConnector.getInstance(hmi.env.logger);
-                    dataConnector.Source = dataAccessPoint;
-                    dataConnector.Connection = connection;
-                    dataConnector.SendDelay = config.dataConnectorSendDelay;
-                    dataConnector.SubscribeDelay = config.dataConnectorAddObserverDelay;
-                    dataConnector.RemoveObserverDelay = config.dataConnectorRemoveObserverDelay;
-                    dataConnectors[connection.SessionId] = dataConnector;
-                    dataAccessRouter.RegisterDataConnector(dataConnector);
-                    dataConnector.OnOpen();
+                    dataConnector.source = dataAccessPoint;
+                    dataConnector.connection = connection;
+                    dataConnector.sendDelay = config.dataConnectorSendDelay;
+                    dataConnector.addObserverDelay = config.dataConnectorAddObserverDelay;
+                    dataConnector.removeObserverDelay = config.dataConnectorRemoveObserverDelay;
+                    dataConnectors[connection.sessionId] = dataConnector;
+                    dataAccessRouter.registerDataConnector(dataConnector);
+                    dataConnector.onOpen();
                 },
                 OnReopen: connection => {
-                    hmi.env.logger.Info(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    taskManager.OnOpen(connection);
+                    hmi.env.logger.info(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    taskManager.onOpen(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnOpen();
-                    dataAccessRouter.RegisterDataConnector(dataConnector);
+                    dataAccessRouter.registerDataConnector(dataConnector);
                 },
                 OnClose: connection => {
-                    hmi.env.logger.Info(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    taskManager.OnClose(connection);
+                    hmi.env.logger.info(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    taskManager.onClose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
-                    dataConnector.OnClose();
-                    dataAccessRouter.UnregisterDataConnector(dataConnector);
+                    dataConnector.onClose();
+                    dataAccessRouter.unregisterDataConnector(dataConnector);
                 },
                 OnDispose: connection => {
-                    hmi.env.logger.Info(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
-                    taskManager.OnClose(connection);
+                    hmi.env.logger.info(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    taskManager.onClose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
-                    dataConnector.OnClose();
+                    dataConnector.onClose();
                     delete dataConnectors[connection.SessionId];
-                    dataConnector.Connection = null;
-                    dataConnector.Source = null;
+                    dataConnector.connection = null;
+                    dataConnector.source = null;
                 },
                 OnError: (connection, error) => {
-                    hmi.env.logger.Error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}') to server: ${error}`);
+                    hmi.env.logger.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}') to server`, error);
                 }
             });
             onSuccess();
@@ -253,26 +253,26 @@
 
     tasks.push((onSuccess, onError) => {
         webServer.Listen(config.webServerPort, () => {
-            hmi.env.logger.Info(`js_hmi web server listening on port: ${config.webServerPort}`);
+            hmi.env.logger.info(`js_hmi web server listening on port: ${config.webServerPort}`);
             onSuccess();
         });
     });
 
-    Executor.run(tasks, () => hmi.env.logger.Info('js_hmi running'), error => hmi.env.logger.Error(error));
+    Executor.run(tasks, () => hmi.env.logger.info('js_hmi running'), error => hmi.env.logger.error(error));
 
     function shutdownTaskManagerAsync() {
         return new Promise((resolve, reject) => {
             taskManager.Shutdown(() => resolve(), error => {
-                hmi.env.logger.Error(`Failed to shutdown task manager: ${error}`);
+                hmi.env.logger.error(`Failed to shutdown task manager: ${error}`);
                 reject(error);
             });
         });
     }
 
     async function cleanupAsync() {
-        hmi.env.logger.Info("cleaning up ...");
+        hmi.env.logger.info("cleaning up ...");
         await shutdownTaskManagerAsync();
-        hmi.env.logger.Info("cleanup done");
+        hmi.env.logger.info("cleanup done");
     }
     const cleanup = () => { (async () => await cleanupAsync())(); }
 
@@ -285,7 +285,7 @@
 
     if (false) { // TODO: Remove debug stuff
         setTimeout(() => {
-            hmi.env.logger.Info('Trigger debug shutdown');
+            hmi.env.logger.info('Trigger debug shutdown');
             cleanup();
         }, 5000);
     }
