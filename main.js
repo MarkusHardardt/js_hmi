@@ -152,18 +152,18 @@
     // Set up task manager
     const taskManager = TaskManager.getInstance(hmi);
     hmi.env.tasks = taskManager;
-    contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.OnTasksChanged);
+    contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.onTasksChanged);
     // Set up the handler for routing to individual target systems
     const dataAccessRouter = new DataPoint.Router(hmi.env.logger);
     hmi.env.router = dataAccessRouter;
     // Set up a simple router using the target system router
-    const dataAccessSwitch = new DataPoint.Switch(dataAccessRouter.GetDataAccessObject); // Use the access router handler as source
+    const dataAccessSwitch = new DataPoint.Switch(dataAccessRouter.getDataAccessObject); // Use the access router handler as source
     // Set up the server side access point
     const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessSwitch); // Use the router as source
-    dataAccessPoint.RemoveObserverDelay = config.serverAccessPointRemoveObserverDelay;
+    dataAccessPoint.removeObserverDelay = config.serverAccessPointRemoveObserverDelay;
     if (typeof config.serverAccessPointRemoveObserverDelay === 'number' && config.serverAccessPointRemoveObserverDelay > 0) {
-        dataAccessRouter.OnBeforeUpdateDataConnectors = () => dataAccessPoint.RemoveObserverDelay = false;
-        dataAccessRouter.OnAfterUpdateDataConnectors = () => dataAccessPoint.RemoveObserverDelay = config.serverAccessPointRemoveObserverDelay;
+        dataAccessRouter.onBeforeUpdateDataConnectors = () => dataAccessPoint.removeObserverDelay = false;
+        dataAccessRouter.onAfterUpdateDataConnectors = () => dataAccessPoint.removeObserverDelay = config.serverAccessPointRemoveObserverDelay;
     }
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
 
@@ -193,7 +193,7 @@
     const dataConnectors = {};
     let webSocketServer = undefined;
     webServer.Post('/get_web_socket_session_config',
-        (request, response) => response.send(JsonFX.stringify(webSocketServer.CreateSessionConfig(), false))
+        (request, response) => response.send(JsonFX.stringify(webSocketServer.createSessionConfig(), false))
     );
     tasks.push((onSuccess, onError) => {
         try {
@@ -202,7 +202,7 @@
                 autoConnect: config.autoConnect,
                 closedConnectionDisposeTimeout: config.closedConnectionDisposeTimeout,
                 OnOpen: connection => {
-                    hmi.env.logger.info(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    hmi.env.logger.info(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onOpen(connection);
                     const dataConnector = DataConnector.getInstance(hmi.env.logger);
                     dataConnector.source = dataAccessPoint;
@@ -215,30 +215,30 @@
                     dataConnector.onOpen();
                 },
                 OnReopen: connection => {
-                    hmi.env.logger.info(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    hmi.env.logger.info(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onOpen(connection);
-                    const dataConnector = dataConnectors[connection.SessionId];
+                    const dataConnector = dataConnectors[connection.sessionId];
                     dataConnector.OnOpen();
                     dataAccessRouter.registerDataConnector(dataConnector);
                 },
                 OnClose: connection => {
-                    hmi.env.logger.info(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    hmi.env.logger.info(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onClose(connection);
-                    const dataConnector = dataConnectors[connection.SessionId];
+                    const dataConnector = dataConnectors[connection.sessionId];
                     dataConnector.onClose();
                     dataAccessRouter.unregisterDataConnector(dataConnector);
                 },
                 OnDispose: connection => {
-                    hmi.env.logger.info(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
+                    hmi.env.logger.info(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onClose(connection);
-                    const dataConnector = dataConnectors[connection.SessionId];
+                    const dataConnector = dataConnectors[connection.sessionId];
                     dataConnector.onClose();
-                    delete dataConnectors[connection.SessionId];
+                    delete dataConnectors[connection.sessionId];
                     dataConnector.connection = null;
                     dataConnector.source = null;
                 },
                 OnError: (connection, error) => {
-                    hmi.env.logger.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}') to server`, error);
+                    hmi.env.logger.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}') to server`, error);
                 }
             });
             onSuccess();
@@ -247,9 +247,9 @@
         }
     });
 
-    tasks.push((onSuccess, onError) => taskManager.Initialize(onSuccess, onError));
+    tasks.push((onSuccess, onError) => taskManager.initialize(onSuccess, onError));
 
-    tasks.push((onSuccess, onError) => taskManager.StartAutorunTasks(onSuccess, onError));
+    tasks.push((onSuccess, onError) => taskManager.startAutorunTasks(onSuccess, onError));
 
     tasks.push((onSuccess, onError) => {
         webServer.Listen(config.webServerPort, () => {
@@ -262,7 +262,7 @@
 
     function shutdownTaskManagerAsync() {
         return new Promise((resolve, reject) => {
-            taskManager.Shutdown(() => resolve(), error => {
+            taskManager.shutdown(() => resolve(), error => {
                 hmi.env.logger.error(`Failed to shutdown task manager: ${error}`);
                 reject(error);
             });
