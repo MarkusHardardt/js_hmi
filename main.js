@@ -154,16 +154,16 @@
     hmi.env.tasks = taskManager;
     contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.OnTasksChanged);
     // Set up the handler for routing to individual target systems
-    const dataAccessRouterHandler = new DataPoint.AccessRouterHandler(hmi.env.logger);
-    hmi.env.router = dataAccessRouterHandler;
+    const dataAccessRouter = new DataPoint.Router(hmi.env.logger);
+    hmi.env.router = dataAccessRouter;
     // Set up a simple router using the target system router
-    const dataAccessRouter = new DataPoint.AccessRouter(dataAccessRouterHandler.GetDataAccessObject); // Use the access router handler as source
+    const dataAccessSwitch = new DataPoint.Switch(dataAccessRouter.GetDataAccessObject); // Use the access router handler as source
     // Set up the server side access point
-    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessRouter); // Use the router as source
+    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessSwitch); // Use the router as source
     dataAccessPoint.RemoveObserverDelay = config.serverAccessPointRemoveObserverDelay;
     if (typeof config.serverAccessPointRemoveObserverDelay === 'number' && config.serverAccessPointRemoveObserverDelay > 0) {
-        dataAccessRouterHandler.OnBeforeUpdateDataConnectors = () => dataAccessPoint.RemoveObserverDelay = false;
-        dataAccessRouterHandler.OnAfterUpdateDataConnectors = () => dataAccessPoint.RemoveObserverDelay = config.serverAccessPointRemoveObserverDelay;
+        dataAccessRouter.OnBeforeUpdateDataConnectors = () => dataAccessPoint.RemoveObserverDelay = false;
+        dataAccessRouter.OnAfterUpdateDataConnectors = () => dataAccessPoint.RemoveObserverDelay = config.serverAccessPointRemoveObserverDelay;
     }
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
 
@@ -211,7 +211,7 @@
                     dataConnector.SubscribeDelay = config.dataConnectorAddObserverDelay;
                     dataConnector.RemoveObserverDelay = config.dataConnectorRemoveObserverDelay;
                     dataConnectors[connection.SessionId] = dataConnector;
-                    dataAccessRouterHandler.RegisterDataConnector(dataConnector);
+                    dataAccessRouter.RegisterDataConnector(dataConnector);
                     dataConnector.OnOpen();
                 },
                 OnReopen: connection => {
@@ -219,14 +219,14 @@
                     taskManager.OnOpen(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnOpen();
-                    dataAccessRouterHandler.RegisterDataConnector(dataConnector);
+                    dataAccessRouter.RegisterDataConnector(dataConnector);
                 },
                 OnClose: connection => {
                     hmi.env.logger.Info(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);
                     taskManager.OnClose(connection);
                     const dataConnector = dataConnectors[connection.SessionId];
                     dataConnector.OnClose();
-                    dataAccessRouterHandler.UnregisterDataConnector(dataConnector);
+                    dataAccessRouter.UnregisterDataConnector(dataConnector);
                 },
                 OnDispose: connection => {
                     hmi.env.logger.Info(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.SessionId)}')`);

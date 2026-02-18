@@ -163,87 +163,98 @@
     });
 
     class Client {
+        #endpointUrl;
+        #nodes;
+        #updateMonitoringTimer;
+        #running;
+        #online;
+        #subscription;
+        #session;
+        #client;
+        #opLevel;
+        #onConnected;
+        #onDisconnected;
         constructor(endpointUrl, namespace, nodesConfig) {
-            this._endpointUrl = endpointUrl;
-            this._nodes = {};
+            this.#endpointUrl = endpointUrl;
+            this.#nodes = {};
             for (const dataId in nodesConfig) {
                 if (nodesConfig.hasOwnProperty(dataId)) {
                     const rawNodeId = nodesConfig[dataId];
                     const accessString = `ns=${namespace};s=${rawNodeId}`;
                     const nodeId = resolveNodeId(accessString);
-                    this._nodes[dataId] = { dataId, rawNodeId, accessString, nodeId, value: null, onRefresh: null, monitoredItem: null };
+                    this.#nodes[dataId] = { dataId, rawNodeId, accessString, nodeId, value: null, onRefresh: null, monitoredItem: null };
                 }
             }
-            this._updateMonitoringTimer = null;
-            this._running = false;
-            this._online = false;
-            this._subscription = null;
-            this._session = null;
-            this._client = OPCUAClient.create({
+            this.#updateMonitoringTimer = null;
+            this.#running = false;
+            this.#online = false;
+            this.#subscription = null;
+            this.#session = null;
+            this.#client = OPCUAClient.create({
                 endpointMustExist: false, // Do NOT cache and pin the endpoint description from the first successful connection.
                 connectionStrategy: {
                     initialDelay: 1000,
                     maxRetry: -1       // infinite retry AFTER first connection.
                 }
             });
-            this._onConnected = null;
-            this._onDisconnected = null;
-            this._client.on('start_reconnection', () => this._startReconnection());
-            this._client.on('after_reconnection', () => this._afterReconnection());
-            this._client.on('connection_lost', () => console.log(`TCP connection lost to endpoint url: ${this._endpointUrl}`));
-            this._client.on('backoff', (retry, delay) => console.log(`Retry reconnection to endpoint url ${this._endpointUrl}: #${retry} in ${delay} ms`));
-            this._opLevel = ClientOperationLevel.Disconnected;
+            this.#onConnected = null;
+            this.#onDisconnected = null;
+            this.#client.on('start_reconnection', () => this.#startReconnection());
+            this.#client.on('after_reconnection', () => this.#afterReconnection());
+            this.#client.on('connection_lost', () => console.log(`TCP connection lost to endpoint url: ${this.#endpointUrl}`));
+            this.#client.on('backoff', (retry, delay) => console.log(`Retry reconnection to endpoint url ${this.#endpointUrl}: #${retry} in ${delay} ms`));
+            this.#opLevel = ClientOperationLevel.Disconnected;
         }
 
-        set OnConnected(value) {
+        set onConnected(value) {
             if (value !== undefined && value !== null) {
                 if (typeof value !== 'function') {
                     throw new Error('onConnected() is not a function');
                 }
-                this._onConnected = value;
+                this.#onConnected = value;
             } else {
-                this._onConnected = null;
+                this.#onConnected = null;
             }
         }
 
-        set OnDisconnected(value) {
+        set onDisconnected(value) {
             if (value !== undefined && value !== null) {
                 if (typeof value !== 'function') {
                     throw new Error('onDisonnected() is not a function');
                 }
-                this._onDisconnected = value;
+                this.#onDisconnected = value;
             } else {
-                this._onDisconnected = null;
+                this.#onDisconnected = null;
             }
         }
 
-        Start(onSuccess, onError) {
-            this._running = true;
-            this._opLevel = ClientOperationLevel.Connecting;
+        start(onSuccess, onError) {
+            this.#running = true;
+            this.#opLevel = ClientOperationLevel.Connecting;
             const tasks = [];
-            tasks.push((onSuc, onErr) => this._connect().then(() => {
-                this._opLevel = ClientOperationLevel.Connected;
-                if (!this._running) {
+            tasks.push((onSuc, onErr) => this.#connect().then(() => {
+                this.#opLevel = ClientOperationLevel.Connected;
+                if (!this.#running) {
                     onErr('Not running anymore');
                 } else {
                     onSuc();
                 }
             }).catch(onErr));
-            tasks.push((onSuc, onErr) => this._client.createSession().then(session => {
-                this._session = session;
-                this._opLevel = ClientOperationLevel.SessionCreated;
-                console.log(`Created OPC UA session on endpoint url: ${this._endpointUrl}`);
-                if (!this._running) {
+            tasks.push((onSuc, onErr) => this.#client.createSession().then(session => {
+                this.#session = session;
+                this.#opLevel = ClientOperationLevel.SessionCreated;
+                console.log(`Created OPC UA session on endpoint url: ${this.#endpointUrl}`);
+                if (!this.#running) {
                     onErr('Not running anymore');
                 } else {
                     onSuc();
                 }
             }).catch(onErr));
             // Read all required items and store the data type
-            tasks.push((onSuc, onErr) => this._initNodesAsync().then(() => {
+            tasks.push((onSuc, onErr) => this.#initNodesAsync().then(() => {
                 console.log('Initialized nodes');
-                this._opLevel = ClientOperationLevel.NodeInitialized;
-                if (!this._running) {
+                this.#opLevel = ClientOperationLevel.NodeInitialized;
+                if (!this.#running) {
                     onErr('Not running anymore');
                 } else {
                     onSuc();
@@ -252,7 +263,7 @@
             tasks.push((onSuc, onErr) => {
                 try {
                     // Create subscription
-                    this._subscription = ClientSubscription.create(this._session, {
+                    this.#subscription = ClientSubscription.create(this.#session, {
                         requestedPublishingInterval: 1000,   // ms
                         requestedLifetimeCount: 100,
                         requestedMaxKeepAliveCount: 5, // Make the server send keepalives more often.
@@ -260,10 +271,10 @@
                         publishingEnabled: true,
                         priority: 10
                     });
-                    this._subscription.on('started', () => console.log(`Subscription started - ID: ${this._subscription.subscriptionId}`));
-                    this._subscription.on('terminated', () => console.log(`Subscription terminated - ID: ${this._subscription.subscriptionId}`));
-                    this._opLevel = ClientOperationLevel.Subscribed;
-                    if (!this._running) {
+                    this.#subscription.on('started', () => console.log(`Subscription started - ID: ${this.#subscription.subscriptionId}`));
+                    this.#subscription.on('terminated', () => console.log(`Subscription terminated - ID: ${this.#subscription.subscriptionId}`));
+                    this.#opLevel = ClientOperationLevel.Subscribed;
+                    if (!this.#running) {
                         onErr('Not running anymore');
                     } else {
                         onSuc();
@@ -274,24 +285,24 @@
             });
             tasks.push((onSuc, onErr) => {
                 // Notify observer
-                if (this._onConnected) {
+                if (this.#onConnected) {
                     try {
-                        this._onConnected();
+                        this.#onConnected();
                     } catch (error) {
                         console.error(`Failed calling onConnected(): ${error.message}`)
                     }
                 }
-                if (!this._running) {
+                if (!this.#running) {
                     onErr('Not running anymore');
                 } else {
                     onSuc();
                 }
             });
             Executor.run(tasks,
-                () => console.log(`Successfully started and subscribed OPC UA client to endpoint url: ${this._endpointUrl}`),
+                () => console.log(`Successfully started and subscribed OPC UA client to endpoint url: ${this.#endpointUrl}`),
                 error => {
-                    if (this._running) {
-                        console.error(`Failed starting and subscribing OPC UA client to endpoint url ${this._endpointUrl}: ${error.message}`);
+                    if (this.#running) {
+                        console.error(`Failed starting and subscribing OPC UA client to endpoint url ${this.#endpointUrl}: ${error.message}`);
                     }
                 });
             // When the OPC UA server does not exist at start of this handler the _connect() call may take long.
@@ -299,19 +310,19 @@
             onSuccess();
         }
 
-        async _connect() {
+        async #connect() {
             // Start connect loop to OPC UA server (loop because the server might not be alive at the moment)
-            console.log(`Connecting OPC UA client to endpoint url: ${this._endpointUrl}`);
+            console.log(`Connecting OPC UA client to endpoint url: ${this.#endpointUrl}`);
             let connectRetryDelay = START_TRY_RECONNECT_DELAY;
-            while (this._running) {
+            while (this.#running) {
                 try {
                     console.log('Trying to connect...');
-                    await this._client.connect(this._endpointUrl);
-                    console.log(`Connected to OPC UA client with endpoint url: ${this._endpointUrl}`);
-                    this._online = true;
+                    await this.#client.connect(this.#endpointUrl);
+                    console.log(`Connected to OPC UA client with endpoint url: ${this.#endpointUrl}`);
+                    this.#online = true;
                     return;
                 } catch (error) {
-                    if (this._running) {
+                    if (this.#running) {
                         console.log(`Server not available, retrying in ${connectRetryDelay} s...`);
                         await new Promise(resolve => setTimeout(() => {
                             if (connectRetryDelay < MAX_TRY_RECONNECT_DELAY) {
@@ -326,33 +337,33 @@
             }
         }
 
-        _startReconnection() {
-            this._online = false;
-            console.log(`UPC UA server connection lost to endpoint url: ${this._endpointUrl}`);
-            if (this._onDisconnected) {
+        #startReconnection() {
+            this.#online = false;
+            console.log(`UPC UA server connection lost to endpoint url: ${this.#endpointUrl}`);
+            if (this.#onDisconnected) {
                 try {
-                    this._onDisconnected();
+                    this.#onDisconnected();
                 } catch (error) {
                     console.error(`Failed calling onDisonnected(): ${error.message}`)
                 }
             }
         }
 
-        _afterReconnection() {
-            this._online = true;
-            console.log(`UPC UA server to endpoint url: ${this._endpointUrl} reconnected and everything restored`);
+        #afterReconnection() {
+            this.#online = true;
+            console.log(`UPC UA server to endpoint url: ${this.#endpointUrl} reconnected and everything restored`);
             const tasks = [];
-            tasks.push((onSuccess, onError) => this._initNodesAsync().then(onSuccess).catch(error => {
+            tasks.push((onSuccess, onError) => this.#initNodesAsync().then(onSuccess).catch(error => {
                 console.error(`Failed init nodes: ${error.message}`);
                 onError();
             }));
             tasks.push((onSuccess, onError) => {
                 const toAdd = [];
-                for (const dataId in this._nodes) {
-                    if (this._nodes.hasOwnProperty(dataId)) {
-                        const node = this._nodes[dataId];
+                for (const dataId in this.#nodes) {
+                    if (this.#nodes.hasOwnProperty(dataId)) {
+                        const node = this.#nodes[dataId];
                         if (node.onRefresh && !node.monitoredItem) { // TODO: What do we actually check here?
-                            toAdd.push(getEstablishMonitoringTask(this._subscription, node));
+                            toAdd.push(getEstablishMonitoringTask(this.#subscription, node));
                         }
                     }
                 }
@@ -360,9 +371,9 @@
                 Executor.run(toAdd, onSuccess, onError);
             });
             tasks.push((onSuccess, onError) => {
-                if (this._onConnected) {
+                if (this.#onConnected) {
                     try {
-                        this._onConnected();
+                        this.#onConnected();
                     } catch (error) {
                         console.error(`Failed calling onConnected(): ${error.message}`)
                     }
@@ -370,25 +381,25 @@
                 onSuccess();
             });
             Executor.run(tasks,
-                () => console.log(`Successfully updated after reconnection OPC UA client to endpoint url: ${this._endpointUrl}`),
-                error => console.error(`Failed updating after reconnection OPC UA client to endpoint url ${this._endpointUrl}: ${error.message}`)
+                () => console.log(`Successfully updated after reconnection OPC UA client to endpoint url: ${this.#endpointUrl}`),
+                error => console.error(`Failed updating after reconnection OPC UA client to endpoint url ${this.#endpointUrl}: ${error.message}`)
             );
         }
 
-        async _initNodesAsync() {
-            if (this._session) {
+        async #initNodesAsync() {
+            if (this.#session) {
                 const nodesToRead = [];
-                for (const dataId in this._nodes) {
-                    if (this._nodes.hasOwnProperty(dataId)) {
-                        const node = this._nodes[dataId];
+                for (const dataId in this.#nodes) {
+                    if (this.#nodes.hasOwnProperty(dataId)) {
+                        const node = this.#nodes[dataId];
                         nodesToRead.push({ nodeId: node.nodeId, attributeId: AttributeIds.Value });
                     }
                 }
-                const dataValues = await this._session.read(nodesToRead);
+                const dataValues = await this.#session.read(nodesToRead);
                 let index = 0;
-                for (const dataId in this._nodes) {
-                    if (this._nodes.hasOwnProperty(dataId)) {
-                        const node = this._nodes[dataId];
+                for (const dataId in this.#nodes) {
+                    if (this.#nodes.hasOwnProperty(dataId)) {
+                        const node = this.#nodes[dataId];
                         const dataValue = dataValues[index++];
                         if (dataValue.statusCode.name === 'Good') {
                             node.value = dataValue.value.value;
@@ -405,22 +416,22 @@
             }
         }
 
-        Stop(onSuccess, onError) {
-            this._running = false;
+        stop(onSuccess, onError) {
+            this.#running = false;
             const tasks = [];
             tasks.push((onSuc, onErr) => {
-                if (this._online && this._onDisconnected) {
+                if (this.#online && this.#onDisconnected) {
                     try {
-                        this._onDisconnected();
+                        this.#onDisconnected();
                     } catch (error) {
                         console.error(`Failed calling onDisonnected(): ${error.message}`)
                     }
                 }
                 onSuc();
             });
-            if (this._opLevel >= ClientOperationLevel.Subscribed) {
+            if (this.#opLevel >= ClientOperationLevel.Subscribed) {
                 tasks.push((onSuc, onErr) => {
-                    const nodes = this._nodes, terminations = [];
+                    const nodes = this.#nodes, terminations = [];
                     for (const dataId in nodes) {
                         if (nodes.hasOwnProperty(dataId)) {
                             (function () {
@@ -438,53 +449,53 @@
                     });
                 });
                 tasks.push((onSuc, onErr) => {
-                    this._subscription.terminate().then(() => {
-                        this._subscription = null;
+                    this.#subscription.terminate().then(() => {
+                        this.#subscription = null;
                         onSuc();
                     }).catch(error => {
-                        this._subscription = null;
+                        this.#subscription = null;
                         console.error(`Failed to terminate subscription ${error.message}`);
                         onSuc();
                     });
                 });
             }
-            if (this._opLevel >= ClientOperationLevel.SessionCreated) {
+            if (this.#opLevel >= ClientOperationLevel.SessionCreated) {
                 tasks.push((onSuc, onErr) => {
-                    this._session.close().then(() => {
-                        this._session = null;
+                    this.#session.close().then(() => {
+                        this.#session = null;
                         onSuc();
                     }).catch(error => {
-                        this._session = null;
+                        this.#session = null;
                         console.error(`Failed to close session ${error.message}`);
                         onSuc();
                     });
                 });
             }
-            if (this._opLevel >= ClientOperationLevel.Connecting) {
+            if (this.#opLevel >= ClientOperationLevel.Connecting) {
                 tasks.push((onSuc, onErr) => {
-                    this._client.disconnect().then(onSuc).catch(error => {
+                    this.#client.disconnect().then(onSuc).catch(error => {
                         console.error(`Failed to disconnect ${error.message}`);
                         onSuc();
                     });
                 });
             }
             Executor.run(tasks, () => {
-                console.log(`Successfully stopped OPC UA client to endpoint url: ${this._endpointUrl}`);
+                console.log(`Successfully stopped OPC UA client to endpoint url: ${this.#endpointUrl}`);
                 onSuccess();
             }, error => {
-                const message = `Failed stopping OPC UA client to endpoint url ${this._endpointUrl}: ${error.message}`;
+                const message = `Failed stopping OPC UA client to endpoint url ${this.#endpointUrl}: ${error.message}`;
                 console.error(message);
                 onError(message);
             });
         }
 
-        GetType(dataId) {
-            const node = this._nodes[dataId];
+        getType(dataId) {
+            const node = this.#nodes[dataId];
             return node ? node.type : Core.DataType.Unknown;
         }
 
-        AddObserver(dataId, onRefresh) {
-            const node = this._nodes[dataId];
+        addObserver(dataId, onRefresh) {
+            const node = this.#nodes[dataId];
             if (!node) {
                 throw new Error(`Unknown data id: '${dataId}'`);
             } else if (node.onRefresh === onRefresh) {
@@ -498,39 +509,39 @@
                         console.error(`Failed calling onResfresh(value) for id '${node.dataId}'`);
                     }
                 }
-                if (this._subscription && !this._updateMonitoringTimer) {
-                    this._updateMonitoringTimer = setTimeout(() => {
-                        this._updateMonitoring(() => this._updateMonitoringTimer = null, error => this._updateMonitoringTimer = null);
+                if (this.#subscription && !this.#updateMonitoringTimer) {
+                    this.#updateMonitoringTimer = setTimeout(() => {
+                        this.#updateMonitoring(() => this.#updateMonitoringTimer = null, error => this.#updateMonitoringTimer = null);
                     }, UPDATE_MONITORING_DELAY);
                 }
             }
         }
 
-        RemoveObserver(dataId, onRefresh) {
-            const node = this._nodes[dataId];
+        removeObserver(dataId, onRefresh) {
+            const node = this.#nodes[dataId];
             if (!node) {
                 throw new Error(`Unknown data id: '${dataId}'`);
             } else if (node.onRefresh !== onRefresh) {
                 console.error(`Node with data id: '${dataId}' is not subscribed with passed onRefresh(value) callback`);
             } else {
                 node.onRefresh = null;
-                if (this._subscription && !this._updateMonitoringTimer) {
-                    this._updateMonitoringTimer = setTimeout(() => {
-                        this._updateMonitoring(() => this._updateMonitoringTimer = null, error => this._updateMonitoringTimer = null);
+                if (this.#subscription && !this.#updateMonitoringTimer) {
+                    this.#updateMonitoringTimer = setTimeout(() => {
+                        this.#updateMonitoring(() => this.#updateMonitoringTimer = null, error => this.#updateMonitoringTimer = null);
                     }, UPDATE_MONITORING_DELAY);
                 }
             }
         }
 
-        _updateMonitoring(onSuccess, onError) {
-            if (this._subscription) {
+        #updateMonitoring(onSuccess, onError) {
+            if (this.#subscription) {
                 const toAdd = [], toRemove = [];
-                for (const dataId in this._nodes) {
-                    if (this._nodes.hasOwnProperty(dataId)) {
-                        const node = this._nodes[dataId];
+                for (const dataId in this.#nodes) {
+                    if (this.#nodes.hasOwnProperty(dataId)) {
+                        const node = this.#nodes[dataId];
                         if (node.onRefresh) {
                             if (!node.monitoredItem) {
-                                toAdd.push(getEstablishMonitoringTask(this._subscription, node));
+                                toAdd.push(getEstablishMonitoringTask(this.#subscription, node));
                             }
                         } else {
                             if (node.monitoredItem) {
@@ -549,23 +560,23 @@
                     tasks.push((onSuc, onErr) => Executor.run(toAdd, onSuc, error => onSuc()));
                 }
                 Executor.run(tasks, () => {
-                    console.log(`Successfully removed ${toRemove.length} and added ${toAdd.length} monitoring items on OPC UA client with endpoint url: ${this._endpointUrl}`);
+                    console.log(`Successfully removed ${toRemove.length} and added ${toAdd.length} monitoring items on OPC UA client with endpoint url: ${this.#endpointUrl}`);
                     onSuccess();
                 }, error => {
-                    const message = `Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UA client with endpoint url ${this._endpointUrl}: ${error.message}`;
+                    const message = `Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UA client with endpoint url ${this.#endpointUrl}: ${error.message}`;
                     console.error(message);
                     onError(message);
                 });
             }
         }
 
-        Read(dataId, onResponse, onError) {
-            const node = this._nodes[dataId];
+        read(dataId, onResponse, onError) {
+            const node = this.#nodes[dataId];
             if (!node) {
                 throw new Error(`Unknown data id: '${dataId}'`);
             }
             try {
-                this._session.read({ nodeId: node.nodeId, attributeId: AttributeIds.Value }).then(dataValue => {
+                this.#session.read({ nodeId: node.nodeId, attributeId: AttributeIds.Value }).then(dataValue => {
                     if (dataValue.statusCode.name === 'Good') {
                         const value = dataValue.value.value;
                         console.log(`Value ${value} read from node '${node.rawNodeId}'`);
@@ -583,13 +594,13 @@
             }
         }
 
-        Write(dataId, value) {
-            const node = this._nodes[dataId];
+        write(dataId, value) {
+            const node = this.#nodes[dataId];
             if (!node) {
                 throw new Error(`Unknown data id '${dataId}' fro write`);
             }
             try {
-                this._session.writeSingleNode(node.accessString, { dataType: node.rawType, value })
+                this.#session.writeSingleNode(node.accessString, { dataType: node.rawType, value })
                     .then(() => console.log(`Value ${value} written to node '${node.rawNodeId}'`))
                     .catch(error => console.error(`Cannot write value ${value} to node ${node.rawNodeId}: ${error.message}`));
             } catch (error) {
@@ -597,11 +608,11 @@
             }
         }
 
-        GetDataPoints() {
+        getDataPoints() {
             const dataPoints = [];
-            for (const dataId in this._nodes) {
-                if (this._nodes.hasOwnProperty(dataId)) {
-                    dataPoints.push({ id: dataId, type: this._nodes[dataId].type });
+            for (const dataId in this.#nodes) {
+                if (this.#nodes.hasOwnProperty(dataId)) {
+                    dataPoints.push({ id: dataId, type: this.#nodes[dataId].type });
                 }
             }
             return dataPoints;
