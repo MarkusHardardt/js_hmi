@@ -1,4 +1,5 @@
 {
+    "applicationName": "js_hmi",
     "serverLogLevel": "TRACE",
     "clientLogLevel": "TRACE",
     "staticClientFiles": [],

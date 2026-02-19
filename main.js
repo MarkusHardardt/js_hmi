@@ -67,7 +67,7 @@
         },
         // Environment
         env: {
-            logger: new Logger('js_utils'),
+            logger: new Logger(config.applicationName),
             isInstance: instance => false, // TODO: Implement isInstance(instance)
             isSimulationEnabled: () => false // TODO: Implement isSimulationEnabled()
         },
@@ -81,7 +81,7 @@
     const minimized = true;
     const webServer = new WebServer.Server({ secureKeyFile: config.secureKeyFile, secureCertFile: config.secureCertFile });
     webServer.randomFileIdEnabled = false;
-    webServer.setTitle('js_hmi');
+    webServer.setTitle(config.applicationName);
     webServer.addStaticDirectory('./images', 'images');
     webServer.prepareFavicon('images/favicon.ico');
     webServer.addStaticFile('./node_modules/jquery/dist/' + (minimized ? 'jquery.min.js' : 'jquery.js'));
@@ -140,6 +140,7 @@
     webServer.setBody('');
     // deliver main config to client
     webServer.post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
+        applicationName: config.applicationName,
         logLevel: config.clientLogLevel,
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
         accessPointUnsubscribeDelay: config.clientAccessPointRemoveObserverDelay
@@ -256,26 +257,29 @@
 
     tasks.push((onSuccess, onError) => {
         webServer.listen(config.webServerPort, () => {
-            hmi.env.logger.info(`js_hmi web server listening on port: ${config.webServerPort}`);
+            hmi.env.logger.info(`${config.applicationName} web server listening on port: ${config.webServerPort}`);
             onSuccess();
         });
     });
 
-    Executor.run(tasks, () => hmi.env.logger.info('js_hmi running'), error => hmi.env.logger.error(error));
+    Executor.run(tasks, 
+        () => hmi.env.logger.info(`${config.applicationName} running`), 
+        error => hmi.env.logger.error(`Failed starting ${config.applicationName}`, error)
+    );
 
     function shutdownTaskManagerAsync() {
         return new Promise((resolve, reject) => {
             taskManager.shutdown(() => resolve(), error => {
-                hmi.env.logger.error(`Failed to shutdown task manager: ${error}`);
+                hmi.env.logger.error('Failed to shutdown task manager', error);
                 reject(error);
             });
         });
     }
 
     async function cleanupAsync() {
-        hmi.env.logger.info("cleaning up ...");
+        hmi.env.logger.info('cleaning up ...');
         await shutdownTaskManagerAsync();
-        hmi.env.logger.info("cleanup done");
+        hmi.env.logger.info('cleanup done');
     }
     const cleanup = () => { (async () => await cleanupAsync())(); }
 
@@ -283,8 +287,8 @@
         cleanupAsync().then(() => process.exit(0));
     }
 
-    process.on("SIGINT", cleanUpAndExit);
-    process.on("SIGTERM", cleanUpAndExit);
+    process.on('SIGINT', cleanUpAndExit);
+    process.on('SIGTERM', cleanUpAndExit);
 
     if (false) { // TODO: Remove debug stuff
         setTimeout(() => {
