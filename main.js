@@ -146,7 +146,7 @@
     }, false)));
     // prepare content management system
     // we need the handler for database access
-    const sqlAdapterFactory = SqlHelper.getAdapterFactory();
+    const sqlAdapterFactory = SqlHelper.getAdapterFactory(hmi.env.logger);
     // Setting up content manager and add directory containing the icons for the configurator
     const configIconDirectory = webServer.addStaticDirectory('./node_modules/@markus.hardardt/js_utils/cfg/icons');
     const contentManager = ContentManager.getInstance(hmi.env.logger, sqlAdapterFactory, configIconDirectory);
