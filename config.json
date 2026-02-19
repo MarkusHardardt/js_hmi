@@ -1,4 +1,6 @@
 {
+    "serverLogLevel": "TRACE",
+    "clientLogLevel": "TRACE",
     "staticClientFiles": [],
     "webServerPort": 8080,
     "webSocketPort": 8081,

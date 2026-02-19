@@ -38,6 +38,8 @@
     }
     const config = require(configFile);
 
+    Logger.setLevel(config.serverLogLevel);
+
     // create 'hmi' environment object
     const hmi = {
         // add hmi-object-framweork
@@ -138,6 +140,7 @@
     webServer.setBody('');
     // deliver main config to client
     webServer.post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
+        logLevel: config.clientLogLevel,
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
         accessPointUnsubscribeDelay: config.clientAccessPointRemoveObserverDelay
     }, false)));
@@ -146,7 +149,7 @@
     const sqlAdapterFactory = SqlHelper.getAdapterFactory();
     // Setting up content manager and add directory containing the icons for the configurator
     const configIconDirectory = webServer.addStaticDirectory('./node_modules/@markus.hardardt/js_utils/cfg/icons');
-    const contentManager = ContentManager.getInstance(sqlAdapterFactory, configIconDirectory);
+    const contentManager = ContentManager.getInstance(hmi.env.logger, sqlAdapterFactory, configIconDirectory);
     hmi.env.cms = contentManager;
     contentManager.registerOnWebServer(webServer);
     // Set up task manager
@@ -201,7 +204,7 @@
                 secure: webServer.isSecure,
                 autoConnect: config.autoConnect,
                 closedConnectionDisposeTimeout: config.closedConnectionDisposeTimeout,
-                OnOpen: connection => {
+                onOpen: connection => {
                     hmi.env.logger.info(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onOpen(connection);
                     const dataConnector = DataConnector.getInstance(hmi.env.logger);
@@ -214,21 +217,21 @@
                     dataAccessRouter.registerDataConnector(dataConnector);
                     dataConnector.onOpen();
                 },
-                OnReopen: connection => {
+                onReopen: connection => {
                     hmi.env.logger.info(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onOpen(connection);
                     const dataConnector = dataConnectors[connection.sessionId];
                     dataConnector.OnOpen();
                     dataAccessRouter.registerDataConnector(dataConnector);
                 },
-                OnClose: connection => {
+                onClose: connection => {
                     hmi.env.logger.info(`web socket client closed (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onClose(connection);
                     const dataConnector = dataConnectors[connection.sessionId];
                     dataConnector.onClose();
                     dataAccessRouter.unregisterDataConnector(dataConnector);
                 },
-                OnDispose: connection => {
+                onDispose: connection => {
                     hmi.env.logger.info(`web socket client disposed (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onClose(connection);
                     const dataConnector = dataConnectors[connection.sessionId];
@@ -237,7 +240,7 @@
                     dataConnector.connection = null;
                     dataConnector.source = null;
                 },
-                OnError: (connection, error) => {
+                onError: (connection, error) => {
                     hmi.env.logger.error(`error in connection (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}') to server`, error);
                 }
             });
