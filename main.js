@@ -143,7 +143,7 @@
         applicationName: config.applicationName,
         logLevel: config.clientLogLevel,
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
-        accessPointRemoveObserverDelay: config.clientAccessPointRemoveObserverDelay
+        accessPointUnregisterObserverDelay: config.clientAccessPointUnregisterObserverDelay
     }, false)));
     // prepare content management system
     // we need the handler for database access
@@ -163,14 +163,9 @@
     // Set up a simple router using the target system router
     const dataAccessSwitch = new DataPoint.Switch(dataAccessRouter.getDataAccessObject); // Use the access router handler as source
     // Set up the server side access point
-    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessSwitch); // Use the router as source
-    dataAccessPoint.removeObserverDelay = config.serverAccessPointRemoveObserverDelay;
-    if (false && typeof config.serverAccessPointRemoveObserverDelay === 'number' && config.serverAccessPointRemoveObserverDelay > 0) { // TODO: reuse or remove
-        dataAccessRouter.onBeforeUpdateDataConnectors = () => dataAccessPoint.removeObserverDelay = false;
-        dataAccessRouter.onAfterUpdateDataConnectors = () => dataAccessPoint.removeObserverDelay = config.serverAccessPointRemoveObserverDelay;
-    }
-    dataAccessRouter.onBeforeUpdateDataConnectors = filter => dataAccessPoint.removeObserverFromSource(filter);
-    dataAccessRouter.onAfterUpdateDataConnectors = filter => dataAccessPoint.addObserverToSource(filter);
+    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessSwitch, config.serverAccessPointUnregisterObserverDelay); // Use the router as source
+    dataAccessRouter.onBeforeUpdateDataConnectors = filter => dataAccessPoint.unregisterObserverOnSource(filter);
+    dataAccessRouter.onAfterUpdateDataConnectors = filter => dataAccessPoint.registerObserverOnSource(filter);
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
 
     // Add static finels
