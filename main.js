@@ -78,66 +78,66 @@
     // Prepare web server
     const minimized = true;
     const webServer = new WebServer.Server({ secureKeyFile: config.secureKeyFile, secureCertFile: config.secureCertFile });
-    webServer.RandomFileIdEnabled = false;
-    webServer.SetTitle('js_hmi');
-    webServer.AddStaticDir('./images', 'images');
-    webServer.PrepareFavicon('images/favicon.ico');
-    webServer.AddStaticFile('./node_modules/jquery/dist/' + (minimized ? 'jquery.min.js' : 'jquery.js'));
-    webServer.AddStaticFile('./node_modules/jquery-ui-dist/' + (minimized ? 'jquery-ui.min.css' : 'jquery-ui.css'));
-    webServer.AddStaticFile('./node_modules/jquery-ui-dist/' + (minimized ? 'jquery-ui.min.js' : 'jquery-ui.js'));
+    webServer.randomFileIdEnabled = false;
+    webServer.setTitle('js_hmi');
+    webServer.addStaticDirectory('./images', 'images');
+    webServer.prepareFavicon('images/favicon.ico');
+    webServer.addStaticFile('./node_modules/jquery/dist/' + (minimized ? 'jquery.min.js' : 'jquery.js'));
+    webServer.addStaticFile('./node_modules/jquery-ui-dist/' + (minimized ? 'jquery-ui.min.css' : 'jquery-ui.css'));
+    webServer.addStaticFile('./node_modules/jquery-ui-dist/' + (minimized ? 'jquery-ui.min.js' : 'jquery-ui.js'));
     // Note: The next css file references png files by relative paths. Because 'media' is the common root, we must not scramble deeper folders.
-    webServer.AddStaticFile('./node_modules/datatables/media', minimized ? 'css/jquery.dataTables.min.css' : 'css/jquery.dataTables.css');
-    webServer.AddStaticFile('./node_modules/datatables/media', minimized ? 'js/jquery.dataTables.min.js' : 'js/jquery.dataTables.js');
+    webServer.addStaticFile('./node_modules/datatables/media', minimized ? 'css/jquery.dataTables.min.css' : 'css/jquery.dataTables.css');
+    webServer.addStaticFile('./node_modules/datatables/media', minimized ? 'js/jquery.dataTables.min.js' : 'js/jquery.dataTables.js');
     // Note: Don't use this extension! Shows paging even if not configured and every second page is empty.
-    // webServer.AddStaticFile('./node_modules/datatables.net-scroller/js/dataTables.scroller.js');
+    // webServer.addStaticFile('./node_modules/datatables.net-scroller/js/dataTables.scroller.js');
     // Note: The next css file references png files by relative paths. Because 'dist' is the common root, we must not scramble deeper folders.
-    webServer.AddStaticFile('./node_modules/jquery.fancytree/dist', minimized ? 'skin-lion/ui.fancytree.min.css' : 'skin-lion/ui.fancytree.css');
-    webServer.AddStaticFile('./node_modules/jquery.fancytree/dist/' + (minimized ? 'jquery.fancytree-all.min.js' : 'jquery.fancytree-all.js'));
-    webServer.AddStaticFile('./ext/jquery/jquery.ui.touch-punch.js');
-    webServer.AddStaticFile('./ext/jquery/jquery.transform2d.js');
-    webServer.AddStaticFile('./ext/jquery/ajaxblob.js');
-    webServer.AddStaticFile('./ext/jquery/layout-default-latest.css');
-    webServer.AddStaticFile('./ext/jquery/jquery.layout-latest.js');
-    webServer.AddStaticFile('./ext/jquery/dataTables.pageResize.min.js');
-    webServer.AddStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
+    webServer.addStaticFile('./node_modules/jquery.fancytree/dist', minimized ? 'skin-lion/ui.fancytree.min.css' : 'skin-lion/ui.fancytree.css');
+    webServer.addStaticFile('./node_modules/jquery.fancytree/dist/' + (minimized ? 'jquery.fancytree-all.min.js' : 'jquery.fancytree-all.js'));
+    webServer.addStaticFile('./ext/jquery/jquery.ui.touch-punch.js');
+    webServer.addStaticFile('./ext/jquery/jquery.transform2d.js');
+    webServer.addStaticFile('./ext/jquery/ajaxblob.js');
+    webServer.addStaticFile('./ext/jquery/layout-default-latest.css');
+    webServer.addStaticFile('./ext/jquery/jquery.layout-latest.js');
+    webServer.addStaticFile('./ext/jquery/dataTables.pageResize.min.js');
+    webServer.addStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
     /*
-    webServer.AddStaticFile('./ext/jquery/jquery.transform2d.js');
-    webServer.AddStaticFile('./ext/jquery/ajaxblob.js');
-    webServer.AddStaticFile('./ext/jquery/layout-default-latest.css');
-    webServer.AddStaticFile('./ext/jquery/jquery.layout-latest.js');
-    webServer.AddStaticFile('./ext/jquery/dataTables.pageResize.min.js');
-    webServer.AddStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
+    webServer.addStaticFile('./ext/jquery/jquery.transform2d.js');
+    webServer.addStaticFile('./ext/jquery/ajaxblob.js');
+    webServer.addStaticFile('./ext/jquery/layout-default-latest.css');
+    webServer.addStaticFile('./ext/jquery/jquery.layout-latest.js');
+    webServer.addStaticFile('./ext/jquery/dataTables.pageResize.min.js');
+    webServer.addStaticFile('./ext/jquery/dataTables.scrollResize.min.js');
     */
     // TODO: https://codemirror.net/docs/migration/   --> CodeMirror.fromTextArea
-    webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.css');
-    webServer.AddStaticFile('./node_modules/codemirror/lib/codemirror.js');
-    webServer.AddStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
-    webServer.AddStaticFile('./node_modules/codemirror/mode/xml/xml.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/edit/matchbrackets.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/edit/closebrackets.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/search.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.css');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/dialog/dialog.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/searchcursor.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/match-highlighter.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.css');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/show-hint.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/hint/javascript-hint.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
-    webServer.AddStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
+    webServer.addStaticFile('./node_modules/codemirror/lib/codemirror.css');
+    webServer.addStaticFile('./node_modules/codemirror/lib/codemirror.js');
+    webServer.addStaticFile('./node_modules/codemirror/mode/javascript/javascript.js');
+    webServer.addStaticFile('./node_modules/codemirror/mode/xml/xml.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/edit/matchbrackets.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/edit/closebrackets.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/search/search.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/dialog/dialog.css');
+    webServer.addStaticFile('./node_modules/codemirror/addon/dialog/dialog.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/search/searchcursor.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/search/match-highlighter.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/hint/show-hint.css');
+    webServer.addStaticFile('./node_modules/codemirror/addon/hint/show-hint.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/hint/javascript-hint.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/scroll/annotatescrollbar.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.js');
+    webServer.addStaticFile('./node_modules/codemirror/addon/search/matchesonscrollbar.css');
 
-    webServer.AddStaticFile('./node_modules/file-saver/dist/' + (minimized ? 'FileSaver.min.js' : 'FileSaver.js'));
-    webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify.js');
-    webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-html.js');
-    webServer.AddStaticFile('./node_modules/js-beautify/js/lib/beautify-css.js');
+    webServer.addStaticFile('./node_modules/file-saver/dist/' + (minimized ? 'FileSaver.min.js' : 'FileSaver.js'));
+    webServer.addStaticFile('./node_modules/js-beautify/js/lib/beautify.js');
+    webServer.addStaticFile('./node_modules/js-beautify/js/lib/beautify-html.js');
+    webServer.addStaticFile('./node_modules/js-beautify/js/lib/beautify-css.js');
     // Note: This needs to be added towards the end because it overrides the dark background of dialogues, which is defined by jquery-ui.css.
-    webServer.AddStaticFile('./ui/hmi_styles.css');
+    webServer.addStaticFile('./ui/hmi_styles.css');
     addStaticWebServerJsUtilsFiles(webServer);
     // No content - will be generated at runtime inside browser
-    webServer.SetBody('');
+    webServer.setBody('');
     // deliver main config to client
-    webServer.Post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
+    webServer.post('/get_client_config', (request, response) => response.send(JsonFX.stringify({
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
         accessPointUnsubscribeDelay: config.clientAccessPointRemoveObserverDelay
     }, false)));
@@ -145,14 +145,14 @@
     // we need the handler for database access
     const sqlAdapterFactory = SqlHelper.getAdapterFactory();
     // Setting up content manager and add directory containing the icons for the configurator
-    const configIconDirectory = webServer.AddStaticDir('./node_modules/@markus.hardardt/js_utils/cfg/icons');
-    const contentManager = new ContentManager.Instance(sqlAdapterFactory, configIconDirectory);
+    const configIconDirectory = webServer.addStaticDirectory('./node_modules/@markus.hardardt/js_utils/cfg/icons');
+    const contentManager = ContentManager.getInstance(sqlAdapterFactory, configIconDirectory);
     hmi.env.cms = contentManager;
-    contentManager.RegisterOnWebServer(webServer);
+    contentManager.registerOnWebServer(webServer);
     // Set up task manager
     const taskManager = TaskManager.getInstance(hmi);
     hmi.env.tasks = taskManager;
-    contentManager.RegisterAffectedTypesListener(ContentManager.DataType.Task, taskManager.onTasksChanged);
+    contentManager.registerAffectedTypesListener(ContentManager.DataType.Task, taskManager.onTasksChanged);
     // Set up the handler for routing to individual target systems
     const dataAccessRouter = new DataPoint.Router(hmi.env.logger);
     hmi.env.router = dataAccessRouter;
@@ -174,11 +174,11 @@
                 addStaticFiles(f);
             }
         } else if (typeof file === 'string' && file.length > 0) {
-            webServer.AddStaticFile(file);
+            webServer.addStaticFile(file);
         }
     }
     addStaticFiles(config.staticClientFiles);
-    webServer.AddStaticFile(config.touch ? config.scrollbar_hmi : config.scrollbar_config);
+    webServer.addStaticFile(config.touch ? config.scrollbar_hmi : config.scrollbar_config);
 
     // Freeze the hmi object and it's content
     Object.freeze(hmi.utils);
@@ -192,13 +192,13 @@
     // Prepare web socket server
     const dataConnectors = {};
     let webSocketServer = undefined;
-    webServer.Post('/get_web_socket_session_config',
+    webServer.post('/get_web_socket_session_config',
         (request, response) => response.send(JsonFX.stringify(webSocketServer.createSessionConfig(), false))
     );
     tasks.push((onSuccess, onError) => {
         try {
             webSocketServer = new WebSocketConnection.Server(hmi.env.logger, config.webSocketPort, {
-                secure: webServer.IsSecure,
+                secure: webServer.isSecure,
                 autoConnect: config.autoConnect,
                 closedConnectionDisposeTimeout: config.closedConnectionDisposeTimeout,
                 OnOpen: connection => {
@@ -252,7 +252,7 @@
     tasks.push((onSuccess, onError) => taskManager.startAutorunTasks(onSuccess, onError));
 
     tasks.push((onSuccess, onError) => {
-        webServer.Listen(config.webServerPort, () => {
+        webServer.listen(config.webServerPort, () => {
             hmi.env.logger.info(`js_hmi web server listening on port: ${config.webServerPort}`);
             onSuccess();
         });

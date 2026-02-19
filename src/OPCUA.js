@@ -494,7 +494,7 @@
             return node ? node.type : Core.DataType.Unknown;
         }
 
-        addObserver(dataId, onRefresh) {
+        registerObserver(dataId, onRefresh) {
             const node = this.#nodes[dataId];
             if (!node) {
                 throw new Error(`Unknown data id: '${dataId}'`);
@@ -517,7 +517,7 @@
             }
         }
 
-        removeObserver(dataId, onRefresh) {
+        unregisterObserver(dataId, onRefresh) {
             const node = this.#nodes[dataId];
             if (!node) {
                 throw new Error(`Unknown data id: '${dataId}'`);
