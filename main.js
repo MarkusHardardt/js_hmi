@@ -212,8 +212,7 @@
                     dataConnector.source = dataAccessPoint;
                     dataConnector.connection = connection;
                     dataConnector.sendDelay = config.dataConnectorSendDelay;
-                    dataConnector.addObserverDelay = config.dataConnectorAddObserverDelay;
-                    dataConnector.removeObserverDelay = config.dataConnectorRemoveObserverDelay;
+                    dataConnector.sendObserverRequestDelay = config.sendObserverRequestDelay;
                     dataConnectors[connection.sessionId] = dataConnector;
                     dataAccessRouter.registerDataConnector(dataConnector);
                     dataConnector.onOpen();
