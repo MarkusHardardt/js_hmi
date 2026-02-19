@@ -143,7 +143,7 @@
         applicationName: config.applicationName,
         logLevel: config.clientLogLevel,
         requestAnimationFrameCycle: config.clientRequestAnimationFrameCycle,
-        accessPointUnsubscribeDelay: config.clientAccessPointRemoveObserverDelay
+        accessPointRemoveObserverDelay: config.clientAccessPointRemoveObserverDelay
     }, false)));
     // prepare content management system
     // we need the handler for database access
@@ -165,10 +165,12 @@
     // Set up the server side access point
     const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessSwitch); // Use the router as source
     dataAccessPoint.removeObserverDelay = config.serverAccessPointRemoveObserverDelay;
-    if (typeof config.serverAccessPointRemoveObserverDelay === 'number' && config.serverAccessPointRemoveObserverDelay > 0) {
+    if (false && typeof config.serverAccessPointRemoveObserverDelay === 'number' && config.serverAccessPointRemoveObserverDelay > 0) { // TODO: reuse or remove
         dataAccessRouter.onBeforeUpdateDataConnectors = () => dataAccessPoint.removeObserverDelay = false;
         dataAccessRouter.onAfterUpdateDataConnectors = () => dataAccessPoint.removeObserverDelay = config.serverAccessPointRemoveObserverDelay;
     }
+    dataAccessRouter.onBeforeUpdateDataConnectors = filter => dataAccessPoint.removeObserverFromSource(filter);
+    dataAccessRouter.onAfterUpdateDataConnectors = filter => dataAccessPoint.addObserverToSource(filter);
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
 
     // Add static finels
@@ -221,7 +223,7 @@
                     hmi.env.logger.info(`web socket client reopened (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onOpen(connection);
                     const dataConnector = dataConnectors[connection.sessionId];
-                    dataConnector.OnOpen();
+                    dataConnector.onOpen();
                     dataAccessRouter.registerDataConnector(dataConnector);
                 },
                 onClose: connection => {
@@ -261,8 +263,8 @@
         });
     });
 
-    Executor.run(tasks, 
-        () => hmi.env.logger.info(`${config.applicationName} running`), 
+    Executor.run(tasks,
+        () => hmi.env.logger.info(`${config.applicationName} running`),
         error => hmi.env.logger.error(`Failed starting ${config.applicationName}`, error)
     );
 
