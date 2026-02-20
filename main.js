@@ -164,8 +164,8 @@
     const dataAccessSwitch = new Access.Switch(dataAccessRouter.getDataAccessObject); // Use the access router handler as source
     // Set up the server side access point
     const dataAccessProvider = new Access.Provider(hmi.env.logger, dataAccessSwitch, config.serverAccessPointUnregisterObserverDelay); // Use the switch as source
-    dataAccessRouter.onBeforeUpdateDataConnectors = filter => dataAccessProvider.unregisterObserverOnSource(filter);
-    dataAccessRouter.onAfterUpdateDataConnectors = filter => dataAccessProvider.registerObserverOnSource(filter);
+    dataAccessRouter.onRegisterObserversOnSource = filter => dataAccessProvider.registerObserversOnSource(filter);
+    dataAccessRouter.onUnregisterObserversOnSource = filter => dataAccessProvider.unregisterObserversOnSource(filter);
     hmi.access = dataAccessProvider; // Enable access from anyhwere
 
     // Add static finels
