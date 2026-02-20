@@ -10,7 +10,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@markus.hardardt/js_utils": "^1.2.3",
+    "body-parser": "^2.2.2",
+    "codemirror": "^5.52.2",
+    "datatables": "^1.10.18",
+    "datatables.net": "^2.3.5",
+    "datatables.net-dt": "^2.3.5",
+    "file-saver": "^2.0.5",
+    "jquery": "^3.7.1",
+    "jquery-ui-dist": "^1.13.3",
+    "jquery.fancytree": "^2.38.5",
+    "js-beautify": "^1.15.4",
+    "md5": "^2.3.0",
     "node-opcua-client": "^2.161.0",
     "xlsx": "^0.18.5"
   }
