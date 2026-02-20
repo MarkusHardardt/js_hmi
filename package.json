@@ -10,13 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "codemirror": "^5.52.2",
-    "datatables": "^1.10.18",
-    "file-saver": "^2.0.5",
-    "jquery": "^3.7.1",
-    "jquery-ui-dist": "^1.13.3",
-    "jquery.fancytree": "^2.38.5",
-    "js-beautify": "^1.15.4",
     "node-opcua-client": "^2.161.0",
     "xlsx": "^0.18.5"
   }
