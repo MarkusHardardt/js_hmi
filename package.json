@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@markus.hardardt/js_utils": "^1.2.4",
     "body-parser": "^2.2.2",
     "codemirror": "^5.52.2",
     "datatables": "^1.10.18",
