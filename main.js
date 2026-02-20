@@ -18,7 +18,7 @@
         ContentManager, // direct access: const ContentManager = require('@markus.hardardt/js_utils/src/ContentManager.js');
         ObjectLifecycleManager, // direct access: const ObjectLifecycleManager = require('@markus.hardardt/js_utils/src/ObjectLifecycleManager.js');
         DataConnector, // direct access: const DataConnector = require('@markus.hardardt/js_utils/src/DataConnector.js');
-        DataPoint, // direct access: const DataPoint = require('@markus.hardardt/js_utils/src/DataPoint.js');
+        Access, // direct access: const Access = require('@markus.hardardt/js_utils/src/Access.js');
         Logger, // direct access: const Logger = require('@markus.hardardt/js_utils/src/Logger.js');
         WebSocketConnection, // direct access: const WebSocketConnection = require('@markus.hardardt/js_utils/src/WebSocketConnection.js');
         ContentEditor, // direct access: const ContentEditor = require('@markus.hardardt/js_utils/src/ContentEditor.js');
@@ -60,7 +60,7 @@
             Common,
             ContentManager,
             ObjectLifecycleManager,
-            DataPoint,
+            Access,
             Logger,
             ContentEditor,
             md5
@@ -158,15 +158,15 @@
     hmi.env.tasks = taskManager;
     contentManager.registerAffectedTypesListener(ContentManager.DataType.Task, taskManager.onTasksChanged);
     // Set up the handler for routing to individual target systems
-    const dataAccessRouter = new DataPoint.Router(hmi.env.logger);
+    const dataAccessRouter = new Access.Router(hmi.env.logger);
     hmi.env.router = dataAccessRouter;
     // Set up a simple router using the target system router
-    const dataAccessSwitch = new DataPoint.Switch(dataAccessRouter.getDataAccessObject); // Use the access router handler as source
+    const dataAccessSwitch = new Access.Switch(dataAccessRouter.getDataAccessObject); // Use the access router handler as source
     // Set up the server side access point
-    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessSwitch, config.serverAccessPointUnregisterObserverDelay); // Use the switch as source
-    dataAccessRouter.onBeforeUpdateDataConnectors = filter => dataAccessPoint.unregisterObserverOnSource(filter);
-    dataAccessRouter.onAfterUpdateDataConnectors = filter => dataAccessPoint.registerObserverOnSource(filter);
-    hmi.env.data = dataAccessPoint; // Enable access from anyhwere
+    const dataAccessProvider = new Access.Provider(hmi.env.logger, dataAccessSwitch, config.serverAccessPointUnregisterObserverDelay); // Use the switch as source
+    dataAccessRouter.onBeforeUpdateDataConnectors = filter => dataAccessProvider.unregisterObserverOnSource(filter);
+    dataAccessRouter.onAfterUpdateDataConnectors = filter => dataAccessProvider.registerObserverOnSource(filter);
+    hmi.access = dataAccessProvider; // Enable access from anyhwere
 
     // Add static finels
     function addStaticFiles(file) {
@@ -206,7 +206,7 @@
                     hmi.env.logger.info(`web socket client opened (sessionId: '${WebSocketConnection.formatSesionId(connection.sessionId)}')`);
                     taskManager.onOpen(connection);
                     const dataConnector = DataConnector.getInstance(hmi.env.logger);
-                    dataConnector.source = dataAccessPoint;
+                    dataConnector.source = dataAccessProvider;
                     dataConnector.connection = connection;
                     dataConnector.sendDelay = config.dataConnectorSendDelay;
                     dataConnector.sendObserverRequestDelay = config.sendObserverRequestDelay;
