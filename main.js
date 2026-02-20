@@ -163,7 +163,7 @@
     // Set up a simple router using the target system router
     const dataAccessSwitch = new DataPoint.Switch(dataAccessRouter.getDataAccessObject); // Use the access router handler as source
     // Set up the server side access point
-    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessSwitch, config.serverAccessPointUnregisterObserverDelay); // Use the router as source
+    const dataAccessPoint = new DataPoint.AccessPoint(hmi.env.logger, dataAccessSwitch, config.serverAccessPointUnregisterObserverDelay); // Use the switch as source
     dataAccessRouter.onBeforeUpdateDataConnectors = filter => dataAccessPoint.unregisterObserverOnSource(filter);
     dataAccessRouter.onAfterUpdateDataConnectors = filter => dataAccessPoint.registerObserverOnSource(filter);
     hmi.env.data = dataAccessPoint; // Enable access from anyhwere
