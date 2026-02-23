@@ -1,7 +1,9 @@
 {
     "applicationName": "js_hmi",
-    "serverLogLevel": "TRACE",
-    "clientLogLevel": "TRACE",
+    "serverLogLevel": "INFO",
+    "_serverLogLevel": "TRACE",
+    "clientLogLevel": "INFO",
+    "_clientLogLevel": "TRACE",
     "staticClientFiles": [],
     "webServerPort": 8080,
     "webSocketPort": 8081,
