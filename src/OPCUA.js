@@ -3,6 +3,7 @@
     const OPCUA = {};
     const isNodeJS = typeof require === 'function';
     const fs = require('fs');
+    // doc: https://node-opcua.github.io/api_doc/0.2.0/classes/OPCUAClient.html
     const { OPCUAClient, DataType, AttributeIds, TimestampsToReturn, ClientSubscription, resolveNodeId } = require('node-opcua-client');
     const Executor = require('@markus.hardardt/js_utils/src/Executor.js');
     const Regex = require('@markus.hardardt/js_utils/src/Regex.js');
@@ -106,7 +107,7 @@
             monitoredItem.on('changed', dataValue => {
                 node.value = dataValue.value.value;
                 logger.trace(`OPCUA.Client: Value of node with id '${node.dataId}' changed: ${node.value}`);
-                if (node.value !== null) {
+                if (node.onRefresh && node.value !== null) {
                     try {
                         node.onRefresh(node.value);
                     } catch (error) {
@@ -160,7 +161,7 @@
 
     class Client {
         #logger;
-        #endpointUrl;
+        #options;
         #nodes;
         #updateMonitoringTimer;
         #running;
@@ -171,14 +172,21 @@
         #opLevel;
         #onConnected;
         #onDisconnected;
-        constructor(logger, endpointUrl, namespace, nodesConfig) {
+        constructor(logger, options = {}) {
+            if (typeof options.endpointUrl !== 'string' || Regex.EmptyString.test(options.endpointUrl)) {
+                throw new Error(`Invalid endpointUrl: '${options.endpointUrl}'`);
+            } else if (options.namespace === undefined || options.namespace === null) {
+                throw new Error('Missing namespace');
+            } else if (!options.nodesConfig || typeof options.nodesConfig !== 'object') {
+                throw new Error('Invalid nodes configuration');
+            }
             this.#logger = logger;
-            this.#endpointUrl = endpointUrl;
+            this.#options = options;
             this.#nodes = {};
-            for (const dataId in nodesConfig) {
-                if (nodesConfig.hasOwnProperty(dataId)) {
-                    const rawNodeId = nodesConfig[dataId];
-                    const accessString = `ns=${namespace};s=${rawNodeId}`;
+            for (const dataId in options.nodesConfig) {
+                if (options.nodesConfig.hasOwnProperty(dataId)) {
+                    const rawNodeId = options.nodesConfig[dataId];
+                    const accessString = `ns=${options.namespace};s=${rawNodeId}`;
                     const nodeId = resolveNodeId(accessString);
                     this.#nodes[dataId] = { dataId, rawNodeId, accessString, nodeId, value: null, onRefresh: null, monitoredItem: null };
                 }
@@ -193,14 +201,15 @@
                 connectionStrategy: {
                     initialDelay: 1000,
                     maxRetry: -1 // infinite retry AFTER first connection.
-                }
+                },
+                clientName: options.clientName
             });
             this.#onConnected = null;
             this.#onDisconnected = null;
             this.#client.on('start_reconnection', () => this.#startReconnection());
             this.#client.on('after_reconnection', () => this.#afterReconnection());
-            this.#client.on('connection_lost', () => this.#logger.warn(`OPCUA.Client: TCP connection lost to endpoint url: ${this.#endpointUrl}`));
-            this.#client.on('backoff', (retry, delay) => this.#logger.trace(`OPCUA.Client: Retry reconnection to endpoint url ${this.#endpointUrl}: #${retry} in ${delay} ms`));
+            this.#client.on('connection_lost', () => this.#logger.warn(`OPCUA.Client: TCP connection lost to endpoint url: ${this.#options.endpointUrl}`));
+            this.#client.on('backoff', (retry, delay) => this.#logger.trace(`OPCUA.Client: Retry reconnection to endpoint url ${this.#options.endpointUrl}: #${retry} in ${delay} ms`));
             this.#opLevel = ClientOperationLevel.Disconnected;
         }
         set onConnected(value) {
@@ -238,7 +247,7 @@
             tasks.push((onSuc, onErr) => this.#client.createSession().then(session => {
                 this.#session = session;
                 this.#opLevel = ClientOperationLevel.SessionCreated;
-                this.#logger.trace(`Created OPC UA session on endpoint url: ${this.#endpointUrl}`);
+                this.#logger.trace(`Created OPC UA session on endpoint url: ${this.#options.endpointUrl}`);
                 if (!this.#running) {
                     onErr('OPCUA.Client: Not running anymore');
                 } else {
@@ -294,10 +303,10 @@
                 }
             });
             Executor.run(tasks,
-                () => this.#logger.trace(`OPCUA.Client: Successfully started and subscribed OPC UA client to endpoint url: ${this.#endpointUrl}`),
+                () => this.#logger.trace(`OPCUA.Client: Successfully started and subscribed OPC UA client to endpoint url: ${this.#options.endpointUrl}`),
                 error => {
                     if (this.#running) {
-                        this.#logger.error(`OPCUA.Client: Failed starting and subscribing OPC UA client to endpoint url ${this.#endpointUrl}`, error);
+                        this.#logger.error(`OPCUA.Client: Failed starting and subscribing OPC UA client to endpoint url ${this.#options.endpointUrl}`, error);
                     }
                 });
             // When the OPC UA server does not exist at start of this handler the _connect() call may take long.
@@ -306,13 +315,13 @@
         }
         async #connect() {
             // Start connect loop to OPC UA server (loop because the server might not be alive at the moment)
-            this.#logger.trace(`OPCUA.Client: Connecting OPC UA client to endpoint url: ${this.#endpointUrl}`);
+            this.#logger.trace(`OPCUA.Client: Connecting OPC UA client to endpoint url: ${this.#options.endpointUrl}`);
             let connectRetryDelay = START_TRY_RECONNECT_DELAY;
             while (this.#running) {
                 try {
-                    this.#logger.trace('OPCUA.Client: Trying to connect...');
-                    await this.#client.connect(this.#endpointUrl);
-                    this.#logger.trace(`OPCUA.Client: Connected to OPC UA client with endpoint url: ${this.#endpointUrl}`);
+                    this.#logger.trace(`OPCUA.Client: Trying to connect to endpoint url: ${this.#options.endpointUrl} ...`);
+                    await this.#client.connect(this.#options.endpointUrl);
+                    this.#logger.trace(`OPCUA.Client: Connected to OPC UA client with endpoint url: ${this.#options.endpointUrl}`);
                     this.#online = true;
                     return;
                 } catch (error) {
@@ -332,7 +341,7 @@
         }
         #startReconnection() {
             this.#online = false;
-            this.#logger.trace(`OPCUA.Client: UPC UA server connection lost to endpoint url: ${this.#endpointUrl}`);
+            this.#logger.trace(`OPCUA.Client: UPC UA server connection lost to endpoint url: ${this.#options.endpointUrl}`);
             if (this.#onDisconnected) {
                 try {
                     this.#onDisconnected();
@@ -343,7 +352,7 @@
         }
         #afterReconnection() {
             this.#online = true;
-            this.#logger.trace(`OPCUA.Client: UPC UA server to endpoint url: ${this.#endpointUrl} reconnected and everything restored`);
+            this.#logger.trace(`OPCUA.Client: UPC UA server to endpoint url: ${this.#options.endpointUrl} reconnected and everything restored`);
             const tasks = [];
             tasks.push((onSuccess, onError) => this.#initNodesAsync().then(onSuccess).catch(error => {
                 this.#logger.error('OPCUA.Client: Failed init nodes', error);
@@ -373,8 +382,8 @@
                 onSuccess();
             });
             Executor.run(tasks,
-                () => this.#logger.trace(`OPCUA.Client: Successfully updated after reconnection OPC UA client to endpoint url: ${this.#endpointUrl}`),
-                error => this.#logger.error(`OPCUA.Client: Failed updating after reconnection OPC UA client to endpoint url ${this.#endpointUrl}`, error)
+                () => this.#logger.trace(`OPCUA.Client: Successfully updated after reconnection OPC UA client to endpoint url: ${this.#options.endpointUrl}`),
+                error => this.#logger.error(`OPCUA.Client: Failed updating after reconnection OPC UA client to endpoint url ${this.#options.endpointUrl}`, error)
             );
         }
         async #initNodesAsync() {
@@ -470,11 +479,11 @@
                 });
             }
             Executor.run(tasks, () => {
-                this.#logger.trace(`OPCUA.Client: Successfully stopped OPC UA client to endpoint url: ${this.#endpointUrl}`);
+                this.#logger.trace(`OPCUA.Client: Successfully stopped OPC UA client to endpoint url: ${this.#options.endpointUrl}`);
                 onSuccess();
             }, error => {
-                this.#logger.error(`OPCUA.Client: Failed stopping OPC UA client to endpoint url ${this.#endpointUrl}`, error);
-                onError(`Failed stopping OPC UA client to endpoint url ${this.#endpointUrl}: ${error.message}`);
+                this.#logger.error(`OPCUA.Client: Failed stopping OPC UA client to endpoint url ${this.#options.endpointUrl}`, error);
+                onError(`Failed stopping OPC UA client to endpoint url ${this.#options.endpointUrl}: ${error.message}`);
             });
         }
         getType(dataId) {
@@ -547,11 +556,11 @@
                     tasks.push((onSuc, onErr) => setTimeout(() => onSuc(), 500));
                 }
                 Executor.run(tasks, () => {
-                    this.#logger.trace(`OPCUA.Client: Successfully removed ${toRemove.length} and added ${toAdd.length} monitoring items on OPC UA client with endpoint url: ${this.#endpointUrl}`);
+                    this.#logger.trace(`OPCUA.Client: Successfully removed ${toRemove.length} and added ${toAdd.length} monitoring items on OPC UA client with endpoint url: ${this.#options.endpointUrl}`);
                     onSuccess();
                 }, error => {
-                    this.#logger.error(`OPCUA.Client: Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UA client with endpoint url ${this.#endpointUrl}`, error);
-                    onError(`OPCUA.Client: Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UA client with endpoint url ${this.#endpointUrl}: ${error.message}`);
+                    this.#logger.error(`OPCUA.Client: Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UA client with endpoint url ${this.#options.endpointUrl}`, error);
+                    onError(`OPCUA.Client: Failed removing ${toRemove.length} and adding ${toAdd.length} monitoring items on OPC UA client with endpoint url ${this.#options.endpointUrl}: ${error.message}`);
                 });
             }
         }
