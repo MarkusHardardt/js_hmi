@@ -10,6 +10,9 @@
         fs: require('fs'),
         xlsx: require('xlsx')
     });
+    config.postRequestHandler = { // TODO: Add handler if required
+        sampleHandler: (request, onResponse, onError) => onResponse(`Sample handler response on request: '${request}'`)
+    };
     const main = require('@markus.hardardt/js_utils/server/main.js');
     main(config);
 }());
