@@ -6,7 +6,6 @@
     }
     const config = require(configFile);
     config.external = Object.freeze({
-        OPCUA: require('./src/OPCUA.js'),
         fs: require('fs'),
         xlsx: require('xlsx')
     });
