@@ -17,6 +17,7 @@
     "dataConnectorSendDelay": 90,
     "clientAccessPointUnregisterObserverDelay": 2000,
     "serverAccessPointUnregisterObserverDelay": 2000,
+    "_touch_info": "The following parameter just switches the style of the scrollbar",
     "touch": false,
     "scrollbar_config": "./ui/scrollbar-desktop.css",
     "scrollbar_hmi": "./ui/scrollbar-touch.css",
