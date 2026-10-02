@@ -1,6 +1,6 @@
 {
     "name": "@markus.hardardt/js_hmi",
-    "version": "1.0.4",
+    "version": "2.0.0",
     "description": "",
     "type": "module",
     "main": "main.js",
@@ -19,7 +19,6 @@
     },
     "homepage": "https://github.com/MarkusHardardt/js_hmi#readme",
     "dependencies": {
-        "@markus.hardardt/js_utils": "^1.2.11",
         "body-parser": "^2.2.2",
         "codemirror": "^5.52.2",
         "datatables": "^1.10.18",
