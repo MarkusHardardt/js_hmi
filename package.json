@@ -19,6 +19,7 @@
     },
     "homepage": "https://github.com/MarkusHardardt/js_hmi#readme",
     "dependencies": {
+        "@markus.hardardt/js_utils": "^2.0.0",
         "body-parser": "^2.2.2",
         "codemirror": "^5.52.2",
         "datatables": "^1.10.18",
