@@ -21,7 +21,7 @@
     "dependencies": {
         "@codemirror/lang-html": "^6.4.12",
         "@codemirror/lang-javascript": "^6.2.5",
-        "@markus.hardardt/js_utils": "^2.0.1",
+        "ads-client": "^2.2.0",
         "body-parser": "^2.2.2",
         "codemirror": "^6.0.2",
         "datatables": "^1.10.18",
