@@ -19,9 +19,11 @@
     },
     "homepage": "https://github.com/MarkusHardardt/js_hmi#readme",
     "dependencies": {
-        "@markus.hardardt/js_utils": "^2.0.0",
+        "@codemirror/lang-html": "^6.4.12",
+        "@codemirror/lang-javascript": "^6.2.5",
+        "@markus.hardardt/js_utils": "^2.0.1",
         "body-parser": "^2.2.2",
-        "codemirror": "^5.52.2",
+        "codemirror": "^6.0.2",
         "datatables": "^1.10.18",
         "datatables.net": "^2.3.5",
         "datatables.net-dt": "^2.3.5",
