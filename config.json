@@ -29,5 +29,9 @@
     "staticWebServerFiles": [
         "./ui/hmi_styles.css"
     ],
-    "favicon": "images/favicon.ico"
+    "favicon": "images/favicon.ico",
+    "contentManagerAdmin": {
+        "user": "admin",
+        "password": "admin"
+    }
 }
