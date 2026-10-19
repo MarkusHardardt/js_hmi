@@ -5,6 +5,8 @@
     "type": "module",
     "main": "main.js",
     "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "start": "npm run build && node main.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
@@ -19,6 +21,7 @@
     },
     "homepage": "https://github.com/MarkusHardardt/js_hmi#readme",
     "dependencies": {
+        "@markus.hardardt/js_utils": "file:../js_utils",
         "@codemirror/lang-html": "^6.4.12",
         "@codemirror/lang-javascript": "^6.2.5",
         "@codemirror/streamparser": "^6.0.0",
@@ -40,5 +43,9 @@
         "path": "^0.12.7",
         "ws": "^8.18.3",
         "xlsx": "^0.18.5"
+    },
+    "devDependencies": {
+        "@types/node": "^24.19.2",
+        "typescript": "^5.9.3"
     }
 }
