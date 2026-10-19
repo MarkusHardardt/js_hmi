@@ -7,10 +7,11 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Launch js_hmi (TypeScript)",
             "skipFiles": [
                 "<node_internals>/**"
             ],
+            "preLaunchTask": "build TypeScript (js_utils + js_hmi)",
             "program": "${workspaceFolder}\\main.js"
         }
     ]

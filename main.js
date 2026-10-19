@@ -16,3 +16,4 @@ config.postRequestHandler = {
     sampleHandler: (request, onResponse, onError) => onResponse(`Sample handler response on request: '${request}'`)
 };
 main(config);
+//# sourceMappingURL=main.js.map

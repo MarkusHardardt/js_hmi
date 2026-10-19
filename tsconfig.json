@@ -11,7 +11,8 @@
         "types": ["node"],
         "lib": ["ES2022", "DOM"],
         "noCheck": true,
-        "noEmitOnError": true
+        "noEmitOnError": true,
+        "sourceMap": true
     },
     "include": ["main.ts", "types/**/*.d.ts"],
     "exclude": ["node_modules"]

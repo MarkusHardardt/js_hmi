@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build js_utils TypeScript",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "build"],
+            "options": {
+                "cwd": "${workspaceFolder}\\..\\js_utils"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "build js_hmi TypeScript",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "build"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "build TypeScript (js_utils + js_hmi)",
+            "dependsOn": [
+                "build js_utils TypeScript",
+                "build js_hmi TypeScript"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        }
+    ]
+}
