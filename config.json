@@ -1,8 +1,8 @@
 {
     "applicationName": "js_hmi",
     "_logLevels": "FATAL, ERROR, WARN, INFO, DEBUG, TRACE",
-    "serverLogLevel": "TRACE",
-    "clientLogLevel": "TRACE",
+    "serverLogLevel": "DEBUG",
+    "clientLogLevel": "DEBUG",
     "staticClientFiles": [],
     "webServerPort": 8080,
     "webSocketPort": 8081,
